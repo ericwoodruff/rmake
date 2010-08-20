@@ -1,0 +1,898 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+
+# Hardlink tree design:
+# A hardlink tree is now created for a pseudo-snapshot of the
+# source and is maintained separately from the build tree.
+#
+# This approach provides the following advantages:
+#
+#   * faster syncing - Build-derived files are no longer noise
+#        in the comparison between the source and target
+#
+#   * easier deletion - A full rsync scan is not needed to
+#        identify build-derived files, the build tree can be
+#        deleted handily
+#
+#   * replicated deletes - In the old design, a source file
+#        delete required a complete delete of all build-derived
+#        files, which was not intuitive and required costly
+#        rebuilds. Now source file deletes are replicated
+#        whether or not --clean is specified.
+#
+#
+# Time skew issues:
+#
+# A typical edit/build cycle is as follows:
+#
+# |----edits----|
+#                |----build----|
+#                               |----edits----|
+#                                              |----build----|
+#
+# However, because of possible time differences between an rmake
+# client and build server there might be some time overlap:
+#
+#   ---edits----|
+#             |----build---
+#
+# This overlap is ok, it just means that a follow-on build
+# may rebuild more than necessary.
+#
+# However, the opposite time skew is unacceptable because
+# it could mean that some files are not rebuilt that need
+# to be (it would seem to the build system that the object
+# files are newer some of the sources even though the sources
+# were edited after the build completed):
+#
+#   ---build----|
+#            |----edits---
+#
+#
+# To detect this overlap, we store the oldest file change
+# modification time in a file called .rmake.timestamp (in
+# the client's local time).
+# Additionally, at the completion of any build a file called
+# .rmake.buildstamp is stored on the build side (in the
+# server's local time). When a new build is started, the
+# two timestamps are compared to make sure that the edits
+# started after the last build.
+
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+# Stub hook functions that can be
+# overridden in the user's rmakerc
+
+# $1 = sync files list (relative to LOCAL_WORKSPACE_ROOT)
+# $2 = platform
+# $3 = excludes file
+function rmake-pre-sync-hook () { return 0; }
+
+# $1 = platform
+# $@ = make parameters
+function rmake-pre-make-hook () { return 0; }
+function rmake-post-make-hook () { return 0; }
+function rmake-post-make-failure-hook () { return 0; }
+
+BASHSRC=$BASH_SOURCE
+
+if [ "$OSTYPE" = "cygwin" ]; then
+	BASHSRC="$(cygpath -u "$BASHSRC")"
+fi
+
+RMAKE_HOME="$(dirname "$(readlink -e "$BASHSRC")")"
+
+. "$RMAKE_HOME/../lib/rmake-common"
+
+RMAKE_REVISION=$(max $RMAKE_COMMON_REVISION $(svn_revision '$Revision: 191 $'))
+
+CHECK_FILE=${LOCAL_WORKSPACE_ROOT}/.rmake.check
+COMMAND_LINE="$@ "
+
+# Perform a command and log the result to logdir
+function rmake-log () {
+	local tee="tee"
+	if [ -n "${append_logs}" ]; then
+		tee="${tee} -a"
+	fi
+	if [ -n "${logdir}" ]; then
+		set -o pipefail
+		"$@" 2>&1 | ${tee} "${logdir}/$platform.log"
+	else
+		"$@"
+	fi
+}
+
+# Synchronize a workspace with a build resource (excluding svn cruft)
+# $1 = files (relative to LOCAL_WORKSPACE_ROOT)
+# $2 = platform
+# Note --cvs-exclude ignores directories called 'core' which is not
+# what we want.
+function rmake-sync () {
+	local files="$1"
+	local platform=$2
+	local excludes=$3
+	local server=$(rmake-resource-server $platform)
+	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+	buildroot=${buildroot%/}
+	local buildrootex=$(rmake-fixhomepathex "$(rmake-resource-buildroot $platform)")
+	buildrootex=${buildrootex%/}
+
+	if [ -n "$server" ]; then
+		local rsyncbuildroot="$buildroot"
+	else
+		local rsyncbuildroot="$buildrootex"
+	fi
+
+	local proxyhost=${PROXY_USER_HOST}
+	if [ -z "$server" ]; then
+		unset proxyhost
+	fi
+
+	local v=""
+	if [ -n "${verbose}" ]; then
+		v="v"
+	fi
+
+	local rsync_options="-a${v} --relative --chmod=Fugo-w --omit-dir-times --compress --partial --human-readable"
+	rsync_options="--delete --delete-excluded --delete-during --force ${rsync_options}"
+
+	if [ -z "${svnmeta}" ]; then
+		rsync_options="${rsync_options} --exclude=\".svn/\""
+	else
+		rsync_options="${rsync_options} --exclude=\".svn/text-base/\""
+	fi
+
+	if [ -z "${svnbase}" ]; then
+		rsync_options="${rsync_options} --exclude=\"/base.tgz\""
+	fi
+
+	if [ -n "${pedantic}" ]; then
+		# build the excludes file list relative to LOCAL_WORKSPACE_ROOT
+		rsync_options="${rsync_options} --exclude-from=-"
+	else
+		excludes=/dev/null
+	fi
+
+	echo -n "Synchronizing "
+	if [ -n "${delete}" ]; then
+		echo -n "and cleaning "
+	fi
+	echo "$(rmake-resource "$server" "${buildroot}")/($files)..."
+
+	# Make the destination directory if necessary
+	# Revert a base revision if it exists
+	$(rmake-shell $server) <<-EOF || return $?
+		[ -z "${debug}" ] || set -x
+		set -e
+		if [ -d "${buildrootex}-source" ]; then
+			if [ -f "base.tgz" ]; then
+				cd "${buildrootex}-source"
+				tar -tzf base.tgz | xargs rm -f
+			fi
+		elif [ -z "${delete}" ]; then
+			echo "Note: ${buildrootex} must be created, this may take a few minutes."
+			mkdir -p "${buildrootex}-source"
+		fi
+	EOF
+
+	if [ -z "${delete_only}" ]; then
+		# rsync
+		rsync_options="${rsync_options} --log-file-format='%M %f' --log-file=.rmake.timestamp.$platform.log"
+		$(rmake-shell $proxyhost) <<-EOF || return $?
+			[ -z "${debug}" ] || set -x
+			set -o pipefail
+			set -e
+			cd "${PROXY_WORKSPACE_ROOT}"
+
+			rm -f .rmake.timestamp.$platform.log
+			cat <<-EOS | ${RSYNC} ${rsync_options} --backup --backup-dir="${rsyncbuildroot}.x" -- $files "$(rmake-resource "$server" "$rsyncbuildroot")-source"
+				$(cat ${excludes})
+			EOS
+
+			set +e
+			# Capture the modified file timestamps to .rmake.timestamp.$platform
+			cat .rmake.timestamp.$platform.log | 
+				cut -d" " -f4- | 
+				grep "^20[0-9]" | 
+				grep -v "\.rmake" |
+				grep -v ".\+\~" |
+				sort | 
+				sed -e 's/^\([^-]\+\)-\([^ ]\+\) \(.*$\)/echo "\$(date "+%s" -d"\1 \2") \3"/' | 
+				bash -f - > .rmake.timestamp.$platform
+			exit 0
+		EOF
+
+		if [ -n "${basefile}" ]; then
+			$(rmake-shell) <<-EOF || return $?
+				[ -z "${debug}" ] || set -x
+				${RSYNC} -a "${basefile}" "$(rmake-resource "$server" "$rsyncbuildroot")-source/base.tgz" || return \$?
+			EOF
+		fi
+	fi
+
+	$(rmake-shell $server) <<-EOF || return $?
+		[ -z "${debug}" ] || set -x
+		set -e
+		if [ -n "${basefile}" ]; then
+			if [ -n "${verbose}" ]; then
+				echo "Reverting the following remote files to base revision:"
+			fi
+			cd "${buildrootex}-source"
+			tar ${v}xzf base.tgz
+		fi
+
+		if [ -n "${delete}" ]; then
+			if [ "." = "${files}" ]; then
+				rm -rf "${buildrootex}"
+			else
+				for f in $files; do
+					rm -rf "${buildrootex}/\$f"
+				done
+			fi
+		fi
+
+		# Update the hardlinked build tree with links to the current source
+		if [ "." = "${files}" ]; then
+			cp -al -T -f "${buildrootex}-source" "${buildrootex}"
+		else
+			for f in $files; do
+				cp -al -T -f "${buildrootex}-source/\${f}" "${buildrootex}/\${f}"
+			done
+		fi
+
+		# Deleted source files were moved to .x and are still inodes with 2 links
+		if [ -d "${buildrootex}.x" ]; then
+			# Fully qualify find for cygwin's benefit
+			/usr/bin/find "${buildrootex}.x" -type f -links 2 -printf "rm -rf${v} \"${buildrootex}/%P\"\n" | bash -f -
+			rm -rf "${buildrootex}.x"
+		fi
+	EOF
+}
+
+# Run rmake-sinc with pre-sync hook
+# $*: parameters to rmake-sync
+function rmake-sync-invoke () {
+	([ -n "$nopresync" ] || rmake-pre-sync-hook "$@") &&
+	rmake-sync "$@"
+}
+
+# $1 platform
+# $2 server
+# $3 buildroot
+function rmake-update-buildstamp () {
+	local platform=$1
+	local server=$(rmake-resource-server $platform)
+	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+	local buildrootex=$(rmake-fixhomepathex "$(rmake-resource-buildroot $platform)")
+	$(rmake-shell $server) <<-EOF || return $?
+		[ -z "${debug}" ] || set -x
+		set -e
+		touch "${buildrootex}/.rmake.buildstamp.$platform"
+	EOF
+}
+
+# Run rmake-make with pre-build and post-build hooks
+# $*: parameters to rmake-make
+function rmake-make-hooks () {
+	local platform=$1
+	local server=$(rmake-resource-server $platform)
+	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+	local buildrootex=$(rmake-fixhomepathex "$(rmake-resource-buildroot $platform)")
+
+	# Get the servers previous and last build time
+	local stime=$($(rmake-shell $server) <<-EOF
+			[ -z "${debug}" ] || set -x
+			set -e
+			cd "${buildrootex}"
+			if [ -e .rmake.buildstamp.$platform ]; then
+				stat --format="%Y" .rmake.buildstamp.$platform
+			else
+				echo 0
+			fi
+		EOF
+	)
+
+	local changes=()
+	if [ 0 -ne $stime ] && [ -s "${LOCAL_WORKSPACE_ROOT}/.rmake.timestamp.$platform" ]; then
+		OLDIFS="$IFS"
+		IFS=$'\n'
+		changes=(
+			$(cat "${LOCAL_WORKSPACE_ROOT}/.rmake.timestamp.$platform" | while read f; do
+				let ctime=${f%% *}
+				if [ $ctime -lt $stime ]; then
+					echo ${f#* }
+					continue
+				fi
+				break
+			done)
+		)
+		IFS="$OLDIFS"
+
+		if [ 0 -ne ${#changes[@]} ]; then
+			echo "   Warning: Files were modified before previous make completed, possibly due to a time difference -- results may be unpredictable."
+			echo "   Warning: Local time is $(date), remote time is $(echo date | $(rmake-shell $server))."
+			let i=0
+			while [ $i -lt ${#changes[@]} ]; do
+				echo "   Warning: ${changes[$i]}"
+				let i=$i+1
+			done
+		fi
+	fi
+
+	([ -n "$nopremake" ] || rmake-pre-make-hook "$@") &&
+
+	(
+		trap "rmake-update-buildstamp $platform" EXIT INT ABRT
+		rmake-make "$@"
+	)
+
+	local result=$?
+
+	if [ 0 -ne $result ]; then
+		if [ -z "${pedantic}" ]; then
+			echo "If any build products exist in the source tree they may have contributed to the build failure."
+			echo "Use 'svn status --no-ignore | grep \"^?\"' to see a list of files that may not belong in the source tree."
+			echo
+			echo "Typically, build products are not committed to svn and are therefore filtered out by rmake -i|--pedantic."
+		fi
+		rmake-post-make-failure-hook "$@"
+		return $result
+	elif [ -z "$nopostmake" ] ; then
+		rmake-post-make-hook "$@"
+	fi
+}
+
+# Run rmake-make and collect elapsed time
+# $*: parameters to rmake-make
+function rmake-make-invoke () {
+	if [ -n "${nodecorate}" ]; then
+		rmake-make-hooks "$@"
+	else
+		local starttime=$(date)
+		(time rmake-make-hooks "$@" 2>&1) 2> >(grep real | sed -e 's/real[^0-9]\+/Elapsed:  /')
+		local result=$?
+
+		echo
+		echo "rmake $COMMAND_LINE"
+		if [ -n "${logdir}" ]; then
+			echo "Results logged to ${logdir}/$platform.log"
+		fi
+
+		echo
+		echo "Started:  $starttime"
+		echo "Finished: $(date)"
+
+		echo
+		if [ $result -eq 0 ]; then
+			echo "Success"
+		else
+			echo "Failed $result"
+		fi
+		return $result
+	fi
+}
+
+# $1: platform
+# $2: files to sync
+# $3 ... N: make options
+function rmake-syncmakeexec () {
+	local platform=$1
+	local files="$2"
+	local excludes="$3"
+	shift 3
+	local timestamp="$(date)"
+	local server=$(rmake-resource-server $platform)
+	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+
+	if [ -n "${logdir}" -a ! -n "${append_logs}" ]; then
+		mv -bf "${logdir}"/$platform.log{,.1} >/dev/null 2>&1
+	fi
+	if [ -n "${quiet}" ]; then
+		rmake-log rmake-sync-invoke "${files}" $platform "${excludes}" >/dev/null
+	else
+		rmake-log rmake-sync-invoke "${files}" $platform "${excludes}"
+	fi
+	local result=$?
+	if [ 0 -ne $result ]; then
+		echo Syncronization failed: $result.
+	elif [ ! -n "${update_only}" ]; then
+		if [ -n "${quiet}" ]; then
+			rmake-log rmake-make-invoke $platform "$@" >/dev/null
+		else
+			set -o pipefail
+			if [ -n "${nodecorate}" ]; then
+				rmake-log rmake-make-invoke $platform "$@"
+			else
+				rmake-log rmake-make-invoke $platform "$@" 2>&1 | sed -ue "s/^.*/${server:-local}:$platform: &/g"
+			fi
+		fi
+		result=$?
+	fi
+	if [ -n "${command}" ]; then
+		if [ -n "${logdir}" ]; then
+			${command} "$platform" $result "${timestamp}" "$(rmake-resource "${server}" "${buildroot}")" "${logdir}/$platform.log" || return $?
+		else
+			${command} "$platform" $result "${timestamp}" "$(rmake-resource "${server}" "${buildroot}")" || return $?
+		fi
+	fi
+	return $result
+}
+
+unset help
+unset update_only
+unset delete
+unset pedantic
+unset excludesfile
+unset build_platforms
+unset keepgoing
+unset quiet
+unset verbose
+#unset logdir
+unset nodecorate
+unset parallel
+unset command
+unset syncfiles
+unset delete_only
+unset append_logs
+unset relative
+unset check
+unset svnmeta
+unset svnbase
+unset basepatch
+unset nopresync
+unset nopremake
+unset nopostmake
+unset debug
+
+logdir="$TMPDIR/rmake-$USER/"
+syncfiles="$RMAKE_FILE_LIST"
+
+OPT_ENV=$(getopt -o aAbcC:dDF:hiklL:mp:Pqr:Ruvwx:? \
+	--long append,svn-base,clean,clean-only,debug,delete,delete-only,directory:,file-list:,help,pedantic,log-dir:,mail,parallel,relative,svn-meta,update-only,where-am-i,no-decorate,no-pre-sync,no-pre-make,no-post-make,exec,version,resource,verbose \
+	-n 'rmake' -- "$@")
+
+if [ $? -ne 0 ]; then
+	help=1
+fi
+
+eval set -- "$OPT_ENV"
+
+while true; do
+	case "$1" in
+		(-a)
+			build_platforms="${RMAKE_PLATFORMS}"
+			;;
+		(-A|--append)
+			append_logs=1
+			;;
+		(-b|--svn-base)
+			svnbase=1
+			pedantic=1
+			delete=1
+			;;
+		(-c)
+			check=1
+			;;
+		(-C|--directory)
+			dir=${2}
+			shift
+			;;
+		(--debug)
+			set -x
+			debug=1
+			;;
+		(-d|--delete|--clean)
+			delete=1
+			;;
+		(-D|--delete-only|--clean-only)
+			delete_only=1
+			delete=1
+			update_only=1
+			;;
+		(-F|--file-list)
+			syncfiles="${2}"
+			if [ -n "${relative}" ]; then
+				echo -F conflicts with -R
+				exit 1
+			fi
+			shift
+			;;
+		(-h|-\?|--help)
+			help=1
+			break
+			;;
+		(-i|--pedantic)
+			pedantic=1
+			;;
+		(-k)
+			keepgoing=1
+			;;
+		(-l)
+			echo "$RMAKE_PLATFORMS"
+			exit 0
+			;;
+		(-L|--log-dir)
+			logdir="${2}"
+			shift
+			;;
+		(-m|--svn-meta)
+			svnmeta=1
+			;;
+		(--mail)
+			if [ -z "$RMAKE_EMAIL_ADDRESS" ]; then
+				echo "RMAKE_EMAIL_ADDRESS not set."
+				exit 1
+			fi
+			command="$RMAKE_LIB/rmake-email.sh"
+			;;
+		(--no-decorate)
+			nodecorate=1
+			;;
+		(--no-pre-sync)
+			nopresync=1
+			;;
+		(--no-pre-make)
+			nopremake=1
+			;;
+		(--no-post-make)
+			nopostmake=1
+			;;
+		(-p)
+			build_platforms=${2}
+			shift
+			;;
+		(-P|--parallel)
+			parallel=1
+			quiet=1
+			;;
+		(-q)
+			quiet=1
+			;;
+		(-r|--resource)
+			resource=$(eval echo -n \$$2 | tr -d '\r')
+			if [ -z "${resource}" ]; then
+				echo Platform ${2} not defined.
+				exit 1
+			fi
+			echo ${resource}
+			exit 0
+			;;
+		(-R|--relative)
+			relative=1
+			;;
+		(-u|--update-only)
+			update_only=1
+			;;
+		(-v|--verbose)
+			verbose=1
+			;;
+		(-V|--version)
+			echo "${RMAKE_REVISION}"
+			exit 0
+			;;
+		(-w|--where-am-i)
+			echo ${LOCAL_WORKSPACE_ROOT}
+			exit 0
+			;;
+		(-x|--exec)
+			command=${2}
+			shift
+			;;
+		(--)
+			shift
+			break
+			;;
+		(*)
+			help=1
+			break
+			;;
+
+	esac
+	shift
+done
+
+if [ -z "${build_platforms}" -a -z "${check}" ]; then
+	help=1
+elif [ -n "${delete_only}" -a -n "${svnbase}" ]; then
+	echo "--delete-only is incompatible with --svn-base."
+	exit 1
+else
+	for i in ${build_platforms}; do
+		if [ -z "$(eval echo -n \$$i)" ]; then
+			echo Platform $i not defined.
+			exit 1
+		fi
+	done
+fi
+
+if [ -n "${help}" ]; then
+	cat <<EOF
+rmake is a high-level make program that replicates a source tree
+to a remote workspace and runs the configured make command.
+
+Usage: rmake -a [MODE] [OPTION]... [TARGET]...
+  or   rmake -p "PLATFORMS" [MODE] [OPTION]... [TARGET]...
+
+Modes
+ -d, --clean                delete extraneous files from remote workspace(s)
+ -D, --clean-only           don't transfer or make, just delete (implies -du)
+ -u, --update-only          update remote workspace(s), but do not make
+ -l                         list configured platforms
+ -r, --resource             print the configured resource for a platform
+ -w, --where-am-i           print the located workspace root
+ -c                         only run rmake-check
+     --version              print SVN revision
+ -h, --help                 show this help
+
+Options
+ -a                         operate on all platforms in RMAKE_PLATFORMS
+ -p, --platform=NAMES       operate on NAMES
+ -k, --keep-going           continue on platform error
+ -P, --parallel             parallelize (implies -qk)
+ -C, --directory=DIR        change to DIR before synchronizing or making
+ -R, --relative             synchronize current dir instead of RMAKE_FILE_LIST
+ -q                         suppress non-error messages
+     --mail                 e-mail results (same as -x rmake-email.sh)
+
+SVN Options
+ -i, --pedantic             ignore/exclude files not in good standing with svn
+ -m, --svn-meta             include some svn meta-data (.svn/ with rev. info)
+ -b, --svn-base             copy svn base instead of working copy (implies -di)
+
+Advanced Options
+ -x, --exec=COMMAND         run "COMMAND platform exitcode timestamp server log"
+     --no-decorate          don't decorate/annotate build output
+     --no-pre-sync          don't run pre-sync hook
+     --no-pre-make          don't run pre-make hook
+     --no-post-make         don't run post-make hook
+ -F, --file-list=FILES      synchronize FILES instead of RMAKE_FILE_LIST
+ -v                         increase verbosity (ex. use rsync -v)
+     --debug                print debug trace
+EOF
+	exit 1
+fi
+
+
+if [ -z "$LOCAL_WORKSPACE_ROOT" ]; then
+	echo "The current directory does not contain a project that can be built with rmake: no $WORKSPACE_RC found."
+	exit 1
+fi
+
+if [ -n "${logdir}" ]; then
+	logdir="$(readlink -en ${logdir})"
+fi
+if [ -n "${logdir}" ] && [ ! -d "${logdir}" ]; then
+	mkdir -p -- "${logdir}" >/dev/null 2>&1
+	if [ 0 -ne $? ]; then
+		echo "Failed to create log directory."
+		exit 1
+	fi
+fi
+
+# Have all the configured platforms
+# been validated?
+function checkplatforms () {
+	if [ ! -f "${CHECK_FILE}" ]; then
+		return 1
+	fi
+
+	local list=( $(cat "${CHECK_FILE}") )
+	for p in ${build_platforms}; do
+		unset found
+		for i in $(seq 0 $((${#list[@]} - 1))); do
+			if [ "$p" = "${list[$i]}" ]; then
+				found=1
+			fi
+		done
+		if [ -z "$found" ]; then
+			return 1
+		fi
+	done
+	return 0
+}
+
+# Is the CHECK_FILE more recent
+# than the configuration files?
+function checkuptodate () {
+	if [ ! -f "${CHECK_FILE}" ]; then
+		return 1
+	fi
+	
+	for i in \
+		"${LOCAL_WORKSPACE_ROOT}/${WORKSPACE_RC}" \
+		"${LOCAL_WORKSPACE_ROOT}/${RMAKE_RC}" \
+		"${HOME}/${RMAKE_RC}" \
+		"$RMAKE_BIN/rmake" \
+		"$RMAKE_BIN/rmake-check"; do
+		if [ ! "${CHECK_FILE}" -nt "$i" ]; then
+			return 1
+		fi
+	done
+}
+
+
+checkuptodate
+uptodate=$?
+
+checkplatforms
+platformschecked=$?
+
+if [ -n "${check}" ] || [ 0 -ne $uptodate ] || [ 0 -ne $platformschecked ]; then
+	echo Up-to-date check failed, revalidating...
+	export build_platforms="${build_platforms:-${RMAKE_PLATFORMS}}"
+	"$RMAKE_BIN/rmake-check"
+	if [ 0 -ne $? ]; then
+		exit 1
+	fi
+
+	if [ 0 -eq $uptodate ] && [ 0 -ne $platformschecked ]; then
+		# Some new platform was used but nothing else changed
+		echo "${build_platforms}" >> "${CHECK_FILE}"
+	else
+		echo "${build_platforms}" > "${CHECK_FILE}"
+	fi
+
+	if [ -n "${check}" ]; then 
+		exit 0;
+	fi
+fi
+
+# $1 = pid
+function proctree () {
+	local pid=$1
+	shift 1
+	echo $pid
+	for i in $(pgrep -P $pid); do
+		proctree $i
+	done
+}
+
+# $1 : root pid
+# $N : kill parameters
+function killtree () {
+	local pid=$1
+	shift 1
+	proctree $pid | xargs kill "$@"
+}
+
+if [ -n "${dir}" ]; then
+	cd "${dir}" >/dev/null 2>&1 || exit 1
+fi
+
+if [ -n "${relative}" ]; then
+	syncfiles="$(rmake-pwd)"
+	if [ "${syncfiles}" = "$LOCAL_WORKSPACE_ROOT" ]; then
+		syncfiles="."
+	elif [ "${syncfiles##$LOCAL_WORKSPACE_ROOT/}" != "${syncfiles}" ]; then
+		syncfiles="${syncfiles##$LOCAL_WORKSPACE_ROOT/}";
+	fi
+fi
+
+if [ -n "${pedantic}" ]; then
+	if [ -z "${quiet}" ]; then
+		echo "Using SVN pedantic ignore mode (-i) to filter svn:ignored and unversioned files."
+	fi
+	excludesfile=$TMPDIR/rmake.excludes.$$
+	excluderoot="${LOCAL_WORKSPACE_ROOT}"
+	if [ -n "${relative}" ]; then
+		# When svn status is given an absolute path, it outputs absolute paths
+		excluderoot="$(rmake-pwd)"
+	fi
+
+	excludesxsl="${RMAKE_LIB}/svnexcludes.xsl"
+	if [ -n "${svnbase}" ]; then
+		excludesxsl="${RMAKE_LIB}/svnbase_excludes.xsl"
+	fi
+
+	# All excludes files must be relative (starting with /) from LOCAL_WORKSPACE_ROOT
+	svn status --no-ignore --xml -v "${excluderoot}" | \
+		xsltproc "${excludesxsl}" - | \
+		sed -e "s%${LOCAL_WORKSPACE_ROOT}/\(.*\)%/\1%" > ${excludesfile}
+	if [ -n "${verbose}" ]; then
+		echo Excluding the following files:
+		cat ${excludesfile}
+	fi
+fi
+
+if [ -n "${svnbase}" ]; then
+	if [ -z "${quiet}" ]; then
+		echo "Using the SVN base revision instead of the working copy."
+	fi
+	basefile=$TMPDIR/rmake.base.$$
+	baseroot="${LOCAL_WORKSPACE_ROOT}"
+	if [ -n "${relative}" ]; then
+		# When svn diff is given an absolute path, it outputs absolute paths
+		baseroot="$(rmake-pwd)"
+	fi
+
+	# TODO honor -F
+	svn status --no-ignore --xml -v "${baseroot}" | \
+		xsltproc "${RMAKE_LIB}/svnbase_changes.xsl" - | \
+		sort | \
+		sed -e ':read; N; s/^\(.*\)\n\(\1\/.\+\)$/\2/; t read; P; s/^\(.*\)\n//; b read' | \
+		sed -e "s%^${LOCAL_WORKSPACE_ROOT}/\(.*\)%\1%" | \
+		sed -e "s%^\(\([^/]\+/\)*\)\([^/]\+\)%\1.svn/text-base/\3.svn-base%" |
+		tar --directory "${LOCAL_WORKSPACE_ROOT}" -czf "${basefile}" --files-from=- \
+			--transform="s%.svn/text-base/\(.*\)%\1%;s%.svn-base%%" \
+			--mode="a-w+x"
+	[ 0 -eq $? ] || exit 1
+fi
+
+result=0
+unset children
+for p in ${build_platforms}; do
+	if [ -n "${parallel}" ]; then
+		rmake-syncmakeexec $p "${syncfiles}" "${excludesfile}" "$@" &
+		children="$children $!"
+		eval pid_$!=$p
+	else
+		rmake-syncmakeexec $p "${syncfiles}" "${excludesfile}" "$@"
+		res=$?
+		if [ 0 -ne $res ]; then
+			result=$res
+			if [ -z "${keepgoing}" ]; then
+				break
+			fi
+		fi
+	fi
+done
+
+function interrupted () {
+	echo "Interrupted. Killing child processes, please wait..."
+	if [ -n "${excludesfile}" ]; then
+		rm -f "${excludesfile}"
+	fi
+	if [ -n "${basefile}" ]; then
+		rm -f "${basefile}"
+	fi
+	for i in $children; do
+		killtree $i -INT;
+	done
+}
+trap interrupted INT TERM ABRT PIPE
+
+if [ -n "${parallel}" ]; then
+	echo Waiting for background processes...
+	for i in $children; do
+		platform=$(eval echo \$pid_$i)
+		wait $i
+		res=$?
+		if [ 0 -ne $res ]; then
+			result=$res
+			echo "$platform failed ($result):"
+			tail -n 10 "$logdir/$platform.log"
+			echo
+		else
+			echo "$platform finished successfully."
+		fi
+	done
+fi
+
+if [ -n "${excludesfile}" ]; then
+	rm -f "${excludesfile}"
+fi
+
+if [ -n "${basefile}" ]; then
+	rm -f "${basefile}"
+fi
+
+exit $result

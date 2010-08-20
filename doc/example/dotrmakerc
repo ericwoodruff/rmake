@@ -1,0 +1,380 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+# These SSH options are now default in newer rmakes.
+#RMAKE_SSH_OPTIONS="-o CheckHostIP=no -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no"
+RMAKE_PLATFORMS="rhel5 rhel5jam"
+
+##########################
+## Server Configuration ##
+##########################
+
+#let hour=$(date "+%l" | xargs echo)
+#let hour=9
+#if [ $hour -lt 12 -a $hour -gt 4 ]; then
+	rhel5=ewoodruff@build2:svn/trunk/sns
+	rhel5jam=ewoodruff@build2:svn/trunk/jam-sns
+#else
+#	rhel5=eric@10.10.233.122
+#	rhel5jam=$rhel5:svn/trunk/jam-sns
+#fi
+rhel5=chroot:~/svn/trunk/sns
+rhel5jam=chroot:~/svn/trunk/jam-sns
+
+rhel5retail=$rhel5
+
+nodes=(10.10.235.247 10.10.235.248)
+
+##########################
+##########################
+
+testnode="${nodes[0]}"
+testnode2="${nodes[1]}"
+
+# $1 user@server
+# $2 executable
+# $@ args
+function remote-start () {
+	local userhost=$1
+	local program=$2
+	shift 2
+	$(rmake-shell $userhost) <<-EOF
+		nohup $program "$@" >/dev/null 2>&1 &
+	EOF
+}
+
+# $1 user@server
+# $2 executable
+# $3 args
+#
+# If a local screen session is active
+# this will create a new screen for each
+# server and launch gdb in that screen
+function screen-gdb-remote-start () {
+	local userhost=$1
+	local program=$2
+	shift 2
+
+	if [ "screen" != "$TERM" ] && [ "screen-bce" != "$TERM" ]; then
+		echo "$0 failed, $TERM not in a screen session!"
+		return 1
+	fi
+
+	local name="gdb $userhost:$program"
+
+	screen -t "$name"
+#	screen -X "other"
+
+	sleep 1
+	screen -p "$name" -X stuff "${SSH} $userhost gdb $program"
+	screen -p "$name" -X stuff $'\n'
+	sleep 5
+
+	screen -p "$name" -X stuff "set args"
+	for i in "$@"; do
+		screen -p "$name" -X stuff " \"$i\""
+	done
+	sleep 1
+	screen -p "$name" -X stuff $'\nrun\n'
+	return 0
+}
+
+# $1 user@server
+# $2 executable
+# $3 args
+#
+# Cleanup a screen window started for gdb
+function screen-gdb-cleanup () {
+	local userhost=$1
+	local program=$2
+	shift 2
+
+	if [ "screen" != "$TERM" ] && [ "screen-bce" != "$TERM" ]; then
+		echo "$0 failed, $TERM not in a screen session!"
+		return 1
+	fi
+
+	local name="gdb $userhost:$program"
+	screen -p "$name" -X kill
+}
+
+function rmake-post-make-hook () {
+	local platform=$1
+	shift 1
+	local parameters="$@"
+	local server=$(rmake-resource-server $platform)
+	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+
+	local rsync="rsync -avz --checksum --rsh='${SSH}'"
+
+	echo
+	echo "post-make-hook:"
+
+	case "$(rmake-workspace-pwd)" in
+	/core)
+		if [ "rpm" != "$parameters" ]; then
+			return 0
+		fi
+
+		( set -e
+
+		$(rmake-shell $server) <<-EOF &
+			set -e
+			set -x
+			for node in ${nodes[@]}; do
+			${rsync} \$(find ${buildroot}/core/rpm -type f -name "*.rpm") \
+				root@\$node: &
+			done
+			wait
+		EOF
+
+		for node in ${nodes[@]}; do
+		$(rmake-shell root@$node) <<-EOF &
+			set -e
+			rpm -e hpps-core --nodeps || true
+			rpm -iUvh --force \$(find -name "hpps-core*.rpm" | head -n1)
+		EOF
+		done
+		wait
+
+		) || return $?
+	;;
+
+	/klondike)
+		if [ "rpm" != "$parameters" ]; then
+			return 0
+		fi
+
+		( set -e
+		for node in ${nodes[@]}; do
+		$(rmake-shell root@$node) <<-EOF &
+			set -e
+			/etc/init.d/pmxs stop
+		EOF
+		done
+		wait
+
+		$(rmake-shell $server) <<-EOF &
+			set -e
+			set -x
+			for node in ${nodes[@]}; do
+			${rsync} \$(find ${buildroot}/klondike/rpm -type f -name "*.rpm") \
+				root@\$node: &
+			done
+			wait
+		EOF
+
+		for node in ${nodes[@]}; do
+		$(rmake-shell root@$node) <<-EOF &
+			set -e
+			rpm -e hpps-clustsrv --nodeps || true
+			rpm -iUvh --force \$(find -name "hpps-clustsrv*.rpm" | head -n1)
+		EOF
+		done
+		wait
+
+		) || return $?
+	;;
+
+	/klondike/src/commonxx/test/mxds*)
+		( set -e
+
+		$(rmake-shell $server) <<-EOF
+			set -e
+			${rsync} \$(find ${buildroot}/klondike/src/commonxx/test/mxds -type f -name "mxds_tests") \
+				root@$testnode:
+		EOF
+
+		$(rmake-shell root@$testnode) <<-EOF
+			./mxds_tests
+		EOF
+
+		) || return $?
+	;;
+
+	/klondike/src/libclusterxx/test*)
+		( set -e
+
+		$(rmake-shell $server) <<-EOF
+			set -e
+			${rsync} \$(find ${buildroot}/klondike/src/libclusterxx/test -type f -name "*_test") \
+				root@$testnode:
+		EOF
+
+		$(rmake-shell root@$testnode) <<-EOF
+			./daemon_test & ./tool_test
+			killall -9 daemon_test tool_test
+			true
+		EOF
+
+		) || return $?
+	;;
+
+	/klondike/src/mxds/test*)
+		( set -e
+
+		set -x
+		$(rmake-shell $server) <<-EOF
+			set -e
+			set -x
+			for node in ${nodes[@]}; do
+			${rsync} \$(find ${buildroot}/klondike/src/mxds/test -type f -perm /u+x) \
+				root@\$node: &
+			done
+			wait
+		EOF
+
+		$(rmake-shell root@$testnode) <<-EOF
+			set -e
+			set -x
+			./unit1
+			./unit2
+			./unit3
+			./unit4
+		EOF
+		
+		for node in ${nodes[@]}; do
+		$(rmake-shell root@$node) <<-EOF &
+			set -e
+			set -x
+			./stress --iter 500
+		EOF
+		done
+
+		wait
+
+		) || return $?
+	;;
+
+	/klondike/src/snapshot*)
+		local snaproot=${buildroot}/klondike/src/snapshot
+
+		for node in ${nodes[@]}; do
+			screen-gdb-cleanup root@$node snapshotd
+
+			$(rmake-shell root@$node) <<-EOF
+				find /var/opt/polyserve/debug/core_dumps/ -mindepth 1 -type d | while read f; do
+					echo "Warning: core dump found $node:\$f"
+				done
+
+				killall -STOP mxinit
+				killall snapshotd
+				let n=5
+				echo Waiting for snapshotd to stop...
+				(
+				while [ \$n -gt 0 ]; do 
+					if ! ps -eopid,args | grep "\(/opt/polyserve/sbin/\)\?snapshotd" | grep -v "grep\|defunct"; then
+						echo stopped.
+						exit 0
+					fi
+					sleep 1
+					let n=\$n-1
+				done
+				echo Forcefully stopping any running quotatool, snaptool or snapshotd.
+				killall -9 quotatool snaptool snapshotd
+				)
+
+				echo Moving old logs...
+				mv -b /var/opt/polyserve/debug/snapshotd_stdout.log{,.1}
+				mv -b /var/opt/polyserve/debug/snapshotd_stderr.log{,.1}
+
+				if ! grep -q "snapshotd_do_not_start" /etc/opt/polyserve/mxinit.conf ; then
+					echo "snapshotd_do_not_start = 1;" >> /etc/opt/polyserve/mxinit.conf
+				fi
+
+				rm -rf /opt/polyserve/bin/snaptool /opt/polyserve/sbin/snapshotd
+			EOF
+		done
+
+		( set -e
+
+		$(rmake-shell $server) <<-EOF
+		set -e
+
+		for node in ${nodes[@]}; do 
+			
+		echo Transfering to node \$node:
+
+		${rsync} \$(find ${snaproot} -type f -name snaptool) root@\$node:/opt/polyserve/bin/
+
+		${rsync} \$(find ${snaproot} -type f -name snapshotd) root@\$node:/opt/polyserve/sbin/
+
+		${rsync} \
+			\$(find ${buildroot}/core/src/bridge -type f -name "*.jar") \
+			\$(find ${buildroot}/klondike/src/snapshot/bridge -type f -name "*.jar") \
+			\$(find ${snaproot}/bridge -type f -name "*.sh") \
+			root@\$node:
+
+		done
+		EOF
+
+		$(rmake-shell root@$testnode) <<-EOF
+			./SnapshotsReset.sh snap_fs1 snap_fs2 || exit \$?
+		EOF
+
+		for node in ${nodes[@]}; do
+
+			echo Starting $node:snapshotd...
+
+			screen-gdb-remote-start root@$node snapshotd
+
+			$(rmake-shell root@$node) <<-EOF
+				let n=0
+				while [ \$n -lt 20 ]; do 
+					if cat /var/opt/polyserve/debug/snapshotd_stdout.log | grep "Starting daemon processing"; then
+						echo started.
+						exit 0
+					fi
+					echo -n .
+					sleep 1
+					let n=\$n+1
+				done
+				echo snapshotd did not start.
+				exit 1
+			EOF
+		done
+		)
+		local result=$?
+
+		if [ 0 = $result ]; then
+			sleep 3
+			$(rmake-shell root@$testnode) <<-EOF
+				./SnapshotsFunctionalTest.sh snap_fs1 snap_fs2
+			EOF
+			result=$?
+		fi
+
+		for node in ${nodes[@]}; do
+			$(rmake-shell root@$node) <<-EOF
+				find /var/opt/polyserve/debug/core_dumps/ -mindepth 1 -type d | while read f; do
+					echo "Warning: core dump found $node:\$f"
+				done
+			EOF
+		done
+
+		return $result
+	;;
+
+	*)
+		echo No post-make hook for $(rmake-workspace-pwd).
+	;;
+	esac
+}

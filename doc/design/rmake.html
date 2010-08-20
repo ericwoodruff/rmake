@@ -1,0 +1,1002 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+            <title>rmake - SWDnas - HP R&D Wiki</title>
+    
+        
+        
+        
+        
+        
+
+                        
+        
+    
+    
+            
+<meta id="confluence-context-path" name="confluence-context-path" content="/confluence">
+<meta id="confluence-space-key" name="confluence-space-key" content="SWDnas">
+
+<script type="text/javascript">
+    // Deprecated global variables. To be removed in a future version of Confluence.
+    var contextPath = '/confluence';
+    var i18n = [];
+</script>
+
+    
+
+<!-- include system resources -->
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/master.css" title="Confluence Master Stylesheet" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/wiki-content.css" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/tabs.css" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/menu.css" media="all"/>
+<!--[if IE]>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/menu-ie.css" media="all"/>
+<![endif]-->
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/tables.css" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/panels.css" media="all"/>
+<!--[if IE]>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/master-ie.css" title="Master-IE" media="all"/>
+<![endif]-->
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/renderer-macros.css" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/content-types.css" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/information-macros.css" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-styles/layout-macros.css" media="all"/>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Ajquery/jquery.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Ajquery/jquery-compatibility.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Ajquery/jquery.dimensions.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Aajs/atlassian.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Aimage-effects/image-effects.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Aprototype/prototype.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Ascriptaculous/effects.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Ascriptaculous/dragdrop.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Ascriptaculous/controls.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Ascriptaculous/util.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Adwr/engine.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Adwr/util.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/AddLabeltoEntity.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/RemoveLabelFromEntity.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/SuggestedLabelsForEntity.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/GenerateAutocompleteLabelsListForEntity.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/uberlabels.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/labels-editor.js" ></script>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/autocomplete.css" media="all"/>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Alabels-editor/labels.css" media="all"/>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Aanimation/animation.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Acomments/comments.js" ></script>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Acomments/comments.css" media="all"/>
+<!--[if IE]>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Acomments/comments-ie.css" media="all"/>
+<![endif]-->
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Abreadcrumbs/breadcrumbs.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-scripts/master.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-scripts/menu.js" ></script>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Amaster-scripts/PageNotification.js" ></script>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Aprint-styles/print.css" media="print"/>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Adrop-down/drop-down.js" ></script>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Adrop-down/drop-down.css" media="all"/>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Acontentnamesearch/contentnamesearch.js" ></script>
+<link type="text/css" rel="stylesheet" href="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Acontentnamesearch/contentnamesearch.css" media="all"/>
+<script type="text/javascript" src="/confluence/s/1517/10/1.0/_/download/resources/confluence.web.resources%3Aatlassian-effects/atlassian-effects.js" ></script>
+
+<!-- end system resources -->
+
+    <link rel="stylesheet" href="/confluence/s/1517/10/3/_/styles/combined.css?spaceKey=SWDnas" type="text/css">
+
+    <meta name="confluence-request-time" content="1265310931475">
+
+    <link rel="shortcut icon" href="/confluence/favicon.ico">
+    <link rel="icon" type="image/png" href="/confluence/images/logo/confluence_16.png">
+
+<link rel="search" type="application/opensearchdescription+xml" href="/confluence/opensearch/osd.action" title="HP R&amp;D Wiki"/>
+
+    
+</head>
+
+            <body onload="placeFocus()" id="com-atlassian-confluence">
+    
+
+
+    <script type="text/javascript">
+        AJS.toInit(function ($) {
+            $(".message-close-button").each(function () {
+                var li = $(this).parent();
+                var cookieId = this.alt;
+                $(this).click(function () {
+                    li.slideUp();
+                    setCookie(cookieId, true);
+                });
+            });
+
+            $("#messageContainer .confluence-messages").each(function () {
+                if (!getCookie(this.id)) {
+                    $(this).show();
+                }
+            })
+        });
+    </script>
+
+        
+<div id="header">
+        <form id="quick-search" method="get" action="/confluence/dosearchsite.action">
+                <fieldset>
+            <legend>Quick Search</legend>
+            <input id="quick-search-query" type="text" accessKey="q" autocomplete="off" name="queryString" size="25"/>
+            <input id="quick-search-submit" type="submit" value="Search"/>
+        </fieldset>
+        <fieldset class="hidden parameters">
+            <input type="hidden" id="quickSearchPlaceholder" value="Search">
+
+            <input type="hidden" id="quickNavEnabled" value="true">
+             <!-- Quick nav disabled. SettingsManager could not be found -->         </fieldset>
+    </form>
+    <ul id="header-menu-bar" class="ajs-menu-bar">
+                    
+        
+            <li class="normal ajs-menu-item">
+        <a id="browse-menu-link" class="browse trigger ajs-menu-title" href="#"><span><span>Browse</span></span></a>         <div class="hidden ajs-drop-down">
+                        <ul  id="browse-menu-link-leading"                 class="section-leading first">
+                                        <li>
+    
+    <a  id="space-pages-link"  href="/confluence/pages/listpages.action?key=SWDnas"  class=""   title="Attachments: 1">
+                   <span>Pages</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="space-blogposts-link"  href="/confluence/pages/viewrecentblogposts.action?key=SWDnas"  class=""   title="Attachments: 1">
+                   <span>News</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="space-labels-link"  href="/confluence/labels/listlabels-heatmap.action?key=SWDnas"  class=""   title="Attachments: 1">
+                   <span>Labels</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="space-attachments-link"  href="/confluence/spaces/listattachmentsforspace.action?key=SWDnas"  class=""   title="Attachments: 1">
+                   <span>Attachments</span>            </a>
+</li>
+                                        <li>
+    
+    <a   href="/confluence/spaces/space-bookmarks.action?spaceKey=SWDnas"  class=""   title="Attachments: 1">
+                   <span>Bookmarks</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="space-mail-link"  href="/confluence/spaces/viewmailarchive.action?key=SWDnas"  class=""   title="Attachments: 1">
+                   <span>Mail</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="space-advanced-link"  href="/confluence/spaces/viewspacesummary.action?key=SWDnas"  class=""   title="Attachments: 1">
+                   <span>Advanced</span>            </a>
+</li>
+                            </ul>
+                        <ul  id="browse-menu-link-global"                 class="section-global">
+                                        <li>
+    
+    <a  id="people-directory-link"  href="/confluence/peopledirectory.action"  class=""   title="Attachments: 1">
+                   <span>People Directory</span>            </a>
+</li>
+                            </ul>
+                    </div>
+    </li>
+        
+                                        
+            <li class="normal ajs-menu-item">
+        <a id="user-menu-link" class="user trigger ajs-menu-title" href="#"><span><span>Eric M Woodruff</span></span></a>         <div class="hidden ajs-drop-down">
+                        <ul  id="user-menu-link-user-preferences"                 class="section-user-preferences first">
+                                        <li>
+    
+    <a  id="view-user-profile-link"  href="/confluence/users/viewuserprofile.action?username=woodrufe"  class="user-item user-profile"  >
+                   <span>Preferences</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="view-user-history-link"  href="/confluence/users/viewuserhistory.action"  class="user-item user-history popup-link"  >
+                   <span>History</span>            </a>
+</li>
+                            </ul>
+                        <ul  id="user-menu-link-user-content"                 class="section-user-content">
+                                        <li>
+    
+    <a  id="user-labels-link"  href="/confluence/users/viewmylabels.action"  class="user-item"  >
+                   <span>Labels</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="user-watches-link"  href="/confluence/users/viewnotifications.action"  class="user-item"  >
+                   <span>Watches</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="user-drafts-link"  href="/confluence/users/viewmydrafts.action"  class="user-item"  >
+                   <span>Drafts</span>            </a>
+</li>
+                            </ul>
+                        <ul  id="user-menu-link-user-operations"                 class="section-user-operations">
+                                        <li>
+    
+    <a  id="logout-link"  href="/confluence/logout.action"  class="user-item logout-link"  >
+                   <span>Log Out</span>            </a>
+</li>
+                            </ul>
+                    </div>
+    </li>
+                    </ul>
+    
+    
+    <ol id="breadcrumbs">
+                    
+        <li class="first" ><span>
+                                    <a href="/confluence/dashboard.action">Dashboard</a>
+                </span></li>
+                    
+        <li><span>
+                                    <a href="/confluence/display/SWDnas">SWDnas</a>
+                </span></li>
+                    
+        <li><span>
+                                    rmake
+                </span></li>
+        </ol>
+
+</div>
+<div id="main">
+    
+                <ul id="user-control-panel">
+                    <li class="first">Welcome <a href="/confluence/display/~woodrufe">Eric M Woodruff</a></li>
+
+                            <li><a href="/confluence/users/viewuserhistory.action" onclick="window.open(this.href,'user_history', 'width=620, height=150, resizable'); return false;" title="View History">History</a></li>
+            
+            <li><a href="/confluence/users/viewuserprofile.action?username=woodrufe">Preferences</a></li>
+
+            
+            <li><a href="/confluence/logout.action" id="logout">Log Out</a></li>
+                </ul>
+        
+    <div id="navigation" class="content-navigation view">
+        <fieldset class="hidden parameters">
+            <input type="hidden" id="pageId" value="64259078">
+        </fieldset>
+        <ul class="ajs-menu-bar">
+                                <li class="ajs-button normal">
+    
+    <a  id="editPageLink"  href="/confluence/pages/editpage.action?pageId=64259078"  class="edit"  accessKey="e" >
+                   <span><u>E</u>dit</span>            </a>
+</li>
+                    
+            <li class="normal ajs-menu-item">
+        <a id="add-menu-link" class="add trigger ajs-menu-title" href="#"><span><span>Add</span></span></a>         <div class="hidden ajs-drop-down">
+                        <ul  id="add-menu-link-space"                 class="section-space first">
+                                        <li>
+    
+    <a  id="createPageLink"  href="/confluence/pages/createpage.action?spaceKey=SWDnas&fromPageId=64259078"  class="add-page"  accessKey="p" >
+                   <span>Page</span>            </a>
+</li>
+                                        <li>
+    
+    <a   href="/confluence/plugins/socialbookmarking/updatebookmark.action?spaceKey=SWDnas&redirect=spacebookmarks"  class=""  >
+                    <span>
+                <img alt="Bookmark" src="/confluence/images/icons/adfav_16.gif" height="16" width="16" title="Bookmark">
+                Bookmark
+            </span>            </a>
+</li>
+                            </ul>
+                        <ul  id="add-menu-link-page"                 class="section-page">
+                                        <li>
+    
+    <a  id="add-comment-menu-link"  href="/confluence/display/SWDnas/rmake?showComments=true&showCommentArea=true#addcomment"  class="add-comment"  >
+                   <span>Comment</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="add-attachment-link"  href="/confluence/pages/viewpageattachments.action?pageId=64259078"  class="add-attachment"  accessKey="a" >
+                   <span>Attachment</span>            </a>
+</li>
+                            </ul>
+                    </div>
+    </li>
+                    
+            <li class="normal ajs-menu-item">
+        <a id="action-menu-link" class="action trigger ajs-menu-title" href="#"><span><span>Tools</span></span></a>         <div class="hidden ajs-drop-down">
+                        <ul  id="action-menu-link-primary"                 class="section-primary first">
+                                        <li>
+    
+    <a  id="view-attachments-link"  href="/confluence/pages/viewpageattachments.action?pageId=64259078"  class="action-view-attachments"  accessKey="a" >
+                   <span><u>A</u>ttachments (1)</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="action-view-history-link"  href="/confluence/pages/viewpreviousversions.action?pageId=64259078"  class="action-view-history"  >
+                   <span>History</span>            </a>
+</li>
+                                        <li>
+    
+    <a   href="/confluence#" onclick="if (window.ActiveXObject){var ed; try{ed = new ActiveXObject('SharePoint.OpenDocuments.1');}catch(err){window.alert('Unable to create an ActiveX object to open the document. This is most likely because of the security settings for your browser.');return false;}if (ed){ed.EditDocument('http://rndwiki.atlanta.hp.com/confluence/plugins/servlet/editinword/SWDnas/rmake.doc', 'Word.Document');return false;}else{window.alert('Cannot instantiate the required ActiveX control to open the document. This is most likely because you do not have Office installed or you have an older version of Office.');return false;}}else if (window.URLLauncher){var wdFile = new URLLauncher();wdFile.open(encodeURI('/confluence/plugins/servlet/editinword/SWDnas/rmake.doc'));}else if(window.InstallTrigger){if(window.confirm('A plugin is required to use this feature. Would you like to download it?')){InstallTrigger.install({'WebDAV Launcher': '/confluence/download/resources/com.atlassian.confluence.extra.officeconnector:viewfile/webdavloader.xpi'});}}else{window.alert('Internet Explorer or Firefox is required to use this feature');}return false;"  class=""  >
+                    <span>
+                <img alt="Edit in Word" src="/confluence/download/resources/com.atlassian.confluence.extra.officeconnector:editinworditem3/editinwordblue.png" height="16" width="16" title="Edit in Word">
+                Edit in Word
+            </span>            </a>
+</li>
+                            </ul>
+                        <ul  id="action-menu-link-marker"                 class="section-marker">
+                                        <li>
+    
+    <a  id="page-favourite"  href="/confluence/labels/addfavourite.action?entityId=64259078"  class="action-page-favourite"  >
+                   <span>Favourite</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="page-watch"  href="/confluence/pages/addpagenotification.action?pageId=64259078"  class="action-page-watching"  >
+                   <span>Watch</span>            </a>
+</li>
+                            </ul>
+                        <ul  id="action-menu-link-secondary"                 class="section-secondary">
+                                        <li>
+    
+    <a   href="/confluence/pages/worddav/uploadimport.action?pageId=64259078"  class=""  >
+                   <span>Doc Import</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="view-page-info-link"  href="/confluence/pages/viewinfo.action?pageId=64259078"  class="action-view-info"  accessKey="i" >
+                   <span><u>I</u>nfo</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="action-view-source-link"  href="/confluence/pages/viewpagesrc.action?pageId=64259078"  class="action-view-source popup-link"  >
+                   <span>View Wiki Markup</span>            </a>
+</li>
+                            </ul>
+                        <ul  id="action-menu-link-modify"                 class="section-modify">
+                                        <li>
+    
+    <a  id="action-copy-page-link"  href="/confluence/pages/copypage.action?idOfPageToCopy=64259078&spaceKey=SWDnas"  class="action-copy"  >
+                   <span>Copy</span>            </a>
+</li>
+                                        <li>
+    
+    <a  id="action-move-page-link"  href="/confluence/pages/editpage.action?pageId=64259078&locationShowing=true#locationSection"  class="action-move"  >
+                   <span>Move</span>            </a>
+</li>
+                            </ul>
+                    </div>
+    </li>
+            </ul>
+    </div>
+
+    <h1 id="title-heading" class="pagetitle">
+                    <a href="/confluence/display/SWDnas"><img class="logo global custom" src="/confluence/download/attachments/4030465/global.logo?version=2" alt=""></a>        
+		<span id="title-text">
+					            <a href="/confluence/display/SWDnas/rmake">rmake</a>
+    				</span>
+    </h1>
+
+    <!--
+    Root decorator: this is a layer of abstraction that Confluence doesn't need. It will be removed eventually.
+-->
+
+
+
+
+    
+    
+
+    
+    
+        
+    
+    
+                    
+        
+    
+
+    
+
+
+<div id="content" class="page view">
+    
+        
+    
+                                
+        
+    
+
+                    
+
+        
+        <div class="page-metadata">
+    <ul class="page-metadata-icons">
+                <li>
+    
+    <a  id="content-metadata-attachments"  href="/confluence/pages/viewpageattachments.action?pageId=64259078&metadataLink=true"  class="action-view-attachments"  accessKey="a"  title="Attachments: 1">
+                   <span><span class="page-metadata-attachments-text">Attachments:</span><span class="page-metadata-attachments-count">1</span></span>            </a>
+</li>
+        </ul>
+            Added by <a href="/confluence/display/~priths">priths</a>, last edited by <a href="/confluence/display/~priths">priths</a> on Jun 07, 2009
+                        </div>        
+        <div class="wiki-content">
+           <!-- wiki content -->
+            <h1><a name="rmake-Whatisrmake%3F"></a>What is rmake?</h1>
+<p>rmake (rsync make) is a distributed make tool that synchronizes a master SVN tree view to any build resource that you have SSH access to and remotely invokes make on that build resource. It is designed to be run on your workstation, rather than on a specific build server.</p>
+
+<div>
+<ul>
+    <li><a href='#rmake-Whatisrmake%3F'>What is rmake?</a></li>
+    <li><a href='#rmake-Benefits'>Benefits</a></li>
+<ul>
+<ul>
+    <li><a href='#rmake-Userfeedback'>User feedback</a></li>
+</ul>
+</ul>
+    <li><a href='#rmake-Architecture'>Architecture</a></li>
+<ul>
+<ul>
+    <li><a href='#rmake-Howitworks'>How it works</a></li>
+    <li><a href='#rmake-rmakeandDisposableBuildVMs'>rmake and Disposable Build VMs</a></li>
+    <li><a href='#rmake-HypotheticalCheckouts'>Hypothetical Checkouts</a></li>
+    <li><a href='#rmake-Is%2FIsNot'>Is/Is Not</a></li>
+</ul>
+</ul>
+    <li><a href='#rmake-Requirements'>Requirements</a></li>
+    <li><a href='#rmake-Definitions'>Definitions</a></li>
+    <li><a href='#rmake-Scenario1%3ADevelopmentWorkstationBuildServer'>Scenario 1: Development Workstation + Build Server</a></li>
+    <li><a href='#rmake-Scenario2%3ASoloBuildServer'>Scenario 2: Solo Build Server</a></li>
+    <li><a href='#rmake-GuidedInstallwitheasyrmake.sh'>Guided Install with easy-rmake.sh</a></li>
+    <li><a href='#rmake-ManualInstall'>Manual Install</a></li>
+<ul>
+    <li><a href='#rmake-ManualStep1%3ACheckout'>Manual Step 1: Checkout</a></li>
+    <li><a href='#rmake-ManualStep2%3AProjectCheckout'>Manual Step 2: Project Checkout</a></li>
+    <li><a href='#rmake-ManualStep3%3AAddtoPath'>Manual Step 3: Add to Path</a></li>
+    <li><a href='#rmake-ManualStep4%3ASetupBashCompletion%28Optional%29'>Manual Step 4: Setup Bash Completion (Optional)</a></li>
+    <li><a href='#rmake-ManualStep5%3ACreate.rmakerc'>Manual Step 5: Create .rmakerc</a></li>
+</ul>
+    <li><a href='#rmake-The.rmakercFile'>The .rmakerc File</a></li>
+    <li><a href='#rmake-AdvancedConfiguration'>Advanced Configuration</a></li>
+    <li><a href='#rmake-UsageGuide'>Usage Guide</a></li>
+<ul>
+<ul>
+    <li><a href='#rmake-rmakeHelp'>rmake Help</a></li>
+    <li><a href='#rmake-UseCase1%3APerformaBuildinaspecificdirectory'>Use Case 1: Perform a Build in a specific directory</a></li>
+    <li><a href='#rmake-UseCase2%3APerformthesamebuildonallconfiguredplatforms%28RMAKEPLATFORMS%29'>Use Case 2: Perform the same build on all configured platforms (RMAKE_PLATFORMS)</a></li>
+    <li><a href='#rmake-UseCase3%3APurgeallbuildderivedfilesfromaspecificdirectoryandrebuild'>Use Case 3: Purge all build-derived files from a specific directory and rebuild</a></li>
+    <li><a href='#rmake-UseCase4%3AUsermakewithvim'>Use Case 4: Use rmake with vim</a></li>
+    <li><a href='#rmake-UseCase5%3AUsermakewithoutan.rmakerc'>Use Case 5: Use rmake without an .rmakerc</a></li>
+</ul>
+</ul>
+    <li><a href='#rmake-Time'>Time</a></li>
+</ul></div>
+
+<h1><a name="rmake-Benefits"></a>Benefits</h1>
+<ul>
+	<li>Copy the master workspace to one or more build locations.</li>
+	<li>Clean one or more build locations.</li>
+	<li>Build in one or more build locations.</li>
+	<li>Works like make from the current working directory on one's workstation.</li>
+	<li>Can build multiple platforms serially or in parallel.</li>
+	<li>Bash auto-completion support.</li>
+	<li>Extensible to any number of platforms.</li>
+	<li>Encapsulates build details like:
+	<ul>
+		<li>Setting up KCACHE</li>
+		<li>Initializing env on Windows</li>
+	</ul>
+	</li>
+	<li>Separates the build trees from the developer's sandbox; keeps the svn tree pure.</li>
+	<li>Supports emailing results from parallel builds.</li>
+	<li>Understands svn status to exclude files that are unversioned or in poor status (conflicted).</li>
+	<li>By default does not transfer svn metadata (which includes the base revision copy).</li>
+	<li>Can validate build servers meet build requirements:
+	<ul>
+		<li>Proper RPMs installed</li>
+		<li>Password-less ssh access</li>
+		<li>VM has latest version</li>
+	</ul>
+	</li>
+</ul>
+
+
+<h4><a name="rmake-Userfeedback"></a>User feedback</h4>
+<p>"I use rmake all the time to make sure I don't break builds on any of the platforms &#8211; saved me a lot of time and typing. And it's so nice to maintain only one SVN snapshot, and have rmake replicate it when necessary." - Oleg Katsitadze, Beaverton, Oregon</p>
+
+<p>"Since I am working on Big-Bend builds, I use rmake to be able to check that my changes work on both the big-bend build server and the guiness build server. I can do it with one simple command using rmake! This saves me a lot of time." - Yashjeet Kaur, Beaverton, Oregon</p>
+
+<h1><a name="rmake-Architecture"></a>Architecture</h1>
+<p><img src="/confluence/download/attachments/64259078/architecture_diagram.png" align="absmiddle" border="0" /></p>
+
+<h4><a name="rmake-Howitworks"></a>How it works</h4>
+<p>rmake uses a master/shadow architecture and intentionally does not transfer any SVN meta-data to build resources. Therefore, changes to a specific platform cannot be committed from a build resource, but rather from the master working copy instead. The idea is a sort of 'write once, build everywhere' philosophy.<br/>
+This approach has the great advantage that the master copy never gets polluted with build derived files, making it extremely easy to see what source files are new and what has been changed using SVN; this means that the svn:ignore property has virtually no use to rmake users.</p>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Note:</b> rmake copies files to the build servers with read-only permissions to discourage and prevent accidental changes of files on the server that are not suited to be committed back to the svn repository.</td>
+</tr>
+</tbody></table>
+
+<h4><a name="rmake-rmakeandDisposableBuildVMs"></a>rmake and Disposable Build VMs</h4>
+<p>Build VMs are disposable commodities. So why shouldn't any data on them be treated the same way? rmake does this by separating the build trees from the source tree with efficient replication via rsync. You lost a disk in your host machine? Switch to a new cluster host, set up another VM, startup your build server and run rmake again. In an almost self-healing way, you've got your build running again without loss of any work because it wasn't really there in the first place, only a reflection of your work was on that disk. Your real SVN workspace is safe and sound on a secure resource like the ds cluster.</p>
+
+<h4><a name="rmake-HypotheticalCheckouts"></a>Hypothetical Checkouts</h4>
+<p>rmake can clean the build trees to match the master copy exactly. It can even go further and refuse to copy, or even delete from the shadow copy, the files that are not in "good standing" with SVN (such as unversioned, ignored or conflicted files). This allows a build to be run on a build server <em>as if</em> it was checked out from the changes pending in the master workspace/sandbox. This helps protect against the 'I forgot to checkin some files' case.</p>
+
+<h4><a name="rmake-Is%2FIsNot"></a>Is/Is Not</h4>
+<p>rmake can be used:</p>
+<ul>
+	<li>to make a single module on a single platform</li>
+	<li>to make a single module on multiple platforms, in serial or parallel</li>
+	<li>to build the entire klondike tree (minus kernel stuff at the moment) including external on multiple platforms in serial or parallel.</li>
+	<li>to validate changes as a pre-commit step</li>
+	<li>to efficiently produce bits for multiple architectures to test in a mixed 32-bit/64-bit environment</li>
+	<li>to validate that changes build from scratch (by cleaning all build-derived resources beforehand)</li>
+	<li>to sanity check compilation of all platforms from a single svn working copy</li>
+</ul>
+
+
+<p>rmake is not:</p>
+<ul>
+	<li>project, architecture, build server or VM specific</li>
+	<li>just for building remotely, separation between your svn tree and build tree is always a good idea</li>
+	<li>any different than running 'make' directly, all command-line options are forwarded to the build tool</li>
+</ul>
+
+
+<h1><a name="rmake-Requirements"></a>Requirements</h1>
+<ul>
+	<li>rmake is written in Bash, so a Bash interpreter is required.</li>
+	<li>rmake requires the getopt tool.</li>
+	<li>It makes remote connections via ssh and replicates using rsync, so both mush be installed and the master host and the build servers.</li>
+	<li>An up-to-date SVN client and xsltproc are recommended for the SVN pedantic exclusion filter.</li>
+	<li>Non-interactive SSH logins to the build servers is also required.</li>
+	<li>If using a windows machine as your development machine then you should have cygwin installed before beginning the install instructions.</li>
+	<li>Also, set up a build server before starting the install.</li>
+	<li>The time on the build server must not be ahead of the time on your workstation, nor is it allowed to be more than 5 minutes behind. See the section below on Time.</li>
+</ul>
+
+
+<h1><a name="rmake-Definitions"></a>Definitions</h1>
+<p><b>Workstation:</b> The computer that you normally use for editing your source files. Not necessarily the same as the Build Server. Can be any OS (Linux, BSD, Windows, etc).</p>
+
+<p><b>Build Server:</b> This is the computer where your build is actually done. This Build Server must be of the approved Linux Kernel release with the necessary patches, etc for the PolyServe product. The Build Server isn't anything special. It's just a machine that is most commonly prepped by easy-rmake. rmake copies files from the SVN tree and runs the build on the Build Server. So, basically, a Build Server is any computer running a sanctioned, approved, blessed version of Linux. You need to have a local, non-root account on it (but easy-rmake.sh will make one for you if you can provide credentials for easy-rmake to login to the build server as root).</p>
+
+<p><b>easy-rmake</b>: The automated rmake installation script. See the Guided Install section.</p>
+
+<p><b>Platform:</b> In rmake a "platform" is a name used to identify a build configuration on the command-line and in the configuration files. An example of a platform name is "rhel5". These are pre-defined in .rmake file. You can find .rmake under the project root dir. Ex: trunk/sns/.rmake</p>
+
+<p>For more definitions please see <a href="https://swdnaseng.usa.hp.com/plan/technology/Build/BuildFAQs.html" rel="nofollow">https://swdnaseng.usa.hp.com/plan/technology/Build/BuildFAQs.html</a>.</p>
+
+<h1><a name="rmake-Scenario1%3ADevelopmentWorkstationBuildServer"></a>Scenario 1: Development Workstation + Build Server</h1>
+<p>Your workstation is a Linux or Windows box. You happen to have a RHEL5 Linux box sitting in the next room that happens to have the correct Linux kernel or your site provides access to a nightly build server like rhel5-2-64.pdx.polyserve.com. You may or may not have exclusive access to it. You edit files from your workstation. You run easy-rmake to set up your build environment for rmake. When it comes time to build something, you run rmake which performs the build on your Build Server, the Linux box in the next room.</p>
+
+<h1><a name="rmake-Scenario2%3ASoloBuildServer"></a>Scenario 2: Solo Build Server</h1>
+<p>You have a Linux machine that is going to also be development Workstation and your Build Server. You have read the Advanced Configuration section make sure that the build happens outside of your local SVN tree. If you haven't, rmake will notice that and abort.</p>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>CAUTION:</b> Developing on a Build Server is <b>not</b> recommended! You should store your source code under development in a regularly backed-up location. In Beaverton it is recommended to develop on comp1/comp2 (psssh1.cce.hp.com) and/or CIFS/NFS mount your svn tree hosted on the ds cluster.</td>
+</tr>
+</tbody></table>
+
+<h1><a name="rmake-GuidedInstallwitheasyrmake.sh"></a>Guided Install with easy-rmake.sh</h1>
+
+<p>The Guided Install is intended for new developers or those that would like to use the automated install script to assist the setup of a new build machine.</p>
+
+<p><b>To run the Guided Install on your development machine/workstation simply type or paste the following command:</b></p>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> bash -f &lt;(svn cat <a href="https://swd-nas.csd200a.com/svn/swd-nas/trunk/tools/rmake/HP/easy-rmake.sh" rel="nofollow">https://swd-nas.csd200a.com/svn/swd-nas/trunk/tools/rmake/HP/easy-rmake.sh</a> )</td>
+</tr>
+</tbody></table>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Note 1:</b> During the script when asked for a build server, please enter your user information as well as build server name using this format: user-name@buildserver. If you don't have a user on the build server, then either create a user or use root. Building as root is not recommended.</td>
+</tr>
+</tbody></table>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Note 2:</b> In Cygwin there might be a problem with svn interacting with the user, in that case try: </td>
+</tr>
+</tbody></table>
+
+<p>bash -c "$(svn cat <a href="https://swd-nas.csd200a.com/svn/swd-nas/trunk/tools/rmake/HP/easy-rmake.sh" rel="nofollow">https://swd-nas.csd200a.com/svn/swd-nas/trunk/tools/rmake/HP/easy-rmake.sh</a> )"|</p>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Caveat:</b> On RHEL5.x, if you come across a problem with the "Certificate information", execute just the part inside the parenthesis first. Then, re-execute the entire "bash -f (....." command.</td>
+</tr>
+</tbody></table>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Note 3:</b> If your build server is also your workstation, you will need to read the Advanced Configuration section below,</td>
+</tr>
+</tbody></table>
+
+<h1><a name="rmake-ManualInstall"></a>Manual Install</h1>
+
+<p>Most developers that aren't yet using rmake have one or more SVN workspaces with which they do development and SVN transactions with. There are ways to copy one of these workspaces to a new location on a machine that will act as the master server, but a previously polluted workspace is not a good starting point. <a href="https://swd-nas.csd200a.com/svn/swd-nas/trunk/tools/svntools/svntools" rel="nofollow">https://swd-nas.csd200a.com/svn/swd-nas/trunk/tools/svntools/svntools</a> provides some tools to purify an SVN workspace, but it is recommended that a new workspace be checked out on from scratch.</p>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Note:</b> svntools is checked out and sourced by your .bashrc automatically by easy-rmake.</td>
+</tr>
+</tbody></table>
+
+<h3><a name="rmake-ManualStep1%3ACheckout"></a>Manual Step 1: Checkout</h3>
+<p>It is recommended that a new SVN workspace be created based on the following best practice:</p>
+
+<p>Change to your home directory as a starting point and then recursively build a replica of the subversion repository like so:</p>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> svn checkout -N <a href="https://swd-nas.csd200a.com/svn/swd-nas" rel="nofollow">https://swd-nas.csd200a.com/svn/swd-nas</a> svn </td>
+</tr>
+</tbody></table>
+<p><tt>svn update -N svn/trunk svn/branches svn/branches/private svn/branches/devel svn/trunk/tools</tt><br/>
+<tt>svn update svn/trunk/tools/rmake svn/trunk/tools/svntools</tt></p>
+<table class='confluenceTable'><tbody>
+<tr>
+</tr>
+</tbody></table>
+
+<h3><a name="rmake-ManualStep2%3AProjectCheckout"></a>Manual Step 2: Project Checkout</h3>
+<p>From this point you can proceed to checkout your required projects, for example:</p>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> cd svn/trunk </td>
+</tr>
+</tbody></table>
+<p><tt>svn update sns</tt></p>
+<table class='confluenceTable'><tbody>
+<tr>
+</tr>
+</tbody></table>
+
+<h3><a name="rmake-ManualStep3%3AAddtoPath"></a>Manual Step 3: Add to Path</h3>
+<p>Either:</p>
+<ul>
+	<li>Add ~/svn/trunk/tools/rmake to your path
+	<ul>
+		<li>(Optional) Add the following to your ~/.bashrc |echo "alias rmake='rmake-color'" &gt;&gt; ~/.bashrc|</li>
+	</ul>
+	</li>
+	<li>Create a symlink <sub>/bin/rmake -&gt; ~/svn/trunk/tools/rmake/rmake-color and add ~/bin to your path. | mkdir ~/bin &amp;&amp; ln -s ~/svn/trunk/tools/rmake/rmake-color ~/bin/rmake &amp;&amp; echo 'PATH=$PATH:</sub>/bin' &gt;&gt; ~/.bashrc'|</li>
+</ul>
+
+
+<h3><a name="rmake-ManualStep4%3ASetupBashCompletion%28Optional%29"></a>Manual Step 4: Setup Bash Completion (Optional)</h3>
+<p>Create a link /etc/bash_completion.d/rmake that points to rmake/bash_completion.d/rmake</p>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> sudo ln -s ~/svn/trunk/tools/rmake/bash_completion.d/rmake /etc/bash_completion.d/rmake</td>
+</tr>
+<tr>
+</tr>
+</tbody></table>
+
+<h3><a name="rmake-ManualStep5%3ACreate.rmakerc"></a>Manual Step 5: Create .rmakerc</h3>
+<p>Continue reading through the next section to learn about the .rmakerc file.</p>
+
+<h1><a name="rmake-The.rmakercFile"></a>The .rmakerc File</h1>
+<p>The .rmakerc file is usually found in your home directory at ~/.rmakerc. This file is really just a common place to store the configuration of your build server platforms.</p>
+
+<p>The typical ~/.rmakerc file defines the following components for a platform:</p>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> platform=user@server</td>
+</tr>
+</tbody></table>
+<ul>
+	<li>"platform": the platform name</li>
+	<li>"user@": the user to ssh to the Build Server as (optional)</li>
+	<li>"server": the Build Server to synchronize and build with</li>
+</ul>
+
+
+<p>For example:</p>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> rhel5=ewoodruff@tmr11s2rbvm</td>
+</tr>
+</tbody></table>
+
+<h1><a name="rmake-AdvancedConfiguration"></a>Advanced Configuration</h1>
+<p>In reality, rmake will find these platform identifiers from the shell environment so the .rmakerc file is not essential.</p>
+
+<p>Additionally, a  .rmakerc need not be placed in your home directory, but rather it can be placed in a project root directory as well. If placed in a project root such as trunk/sns/.rmakerc, any configured settings defined in ~/.rmakerc will be inherited but can also be overridden in the project-specific version.</p>
+
+<p>Typically a project-specific .rmakerc file is used to specialize the configuration for that project, such as defining a specific build path on the Build Server. See the following definitions of the allowed forms of platform definitions in rmake:</p>
+
+<p><b>Form 1</b>: Remote Host</p>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> platform=user@server:build/path</td>
+</tr>
+</tbody></table>
+<ul>
+	<li>"platform": the platform name</li>
+	<li>"user@": the user to ssh to the Build Server as (optional)</li>
+	<li>"server": the Build Server to synchronize and build with</li>
+	<li>"build/path": the location on the Build Server to place the synchronized files and perform a build (optional)</li>
+</ul>
+
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> <b>Note:</b> Typically the build/path should not be specified. When left unspecified, rmake will automatically select a path on the Build Server that is a moral equivalent to the path to the project root on the local workstation. This allows the rmake user to not have to specify a new .rmakerc configuration for each private branch that is being developed.</td>
+</tr>
+</tbody></table>
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Tip:</b> If you are using rmake directly on a Build Server (Scenario 2 above, not recommended), then you will need to specify a build path because otherwise rmake will automatically choose the same path as the svn tree, which is not allowed. In that case, you can just use <b>Form 2</b> below.</td>
+</tr>
+</tbody></table>
+
+
+<p><b>Form 2</b>: Local Host</p>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> platform=~/build/path</td>
+</tr>
+</tbody></table>
+<ul>
+	<li>"build/path": the location on the local workstation to place the synchronized files and perform a build (optional)</li>
+</ul>
+
+
+
+<p>Lastly, the RMAKE_PROXY option can be specified if there is another location that hosts the svn tree (besides your workstation) that would be a more efficient place to rsync from. For example, my svn tree is actually NFS mounted to the ds cluster, so I proxy through comp1:</p>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'>RMAKE_PROXY=ewoodruff@comp1</td>
+</tr>
+<tr>
+</tr>
+<tr>
+<td class='confluenceTd'><b>Tip:</b> The same rules apply to RMAKE_PROXY as a platform identifier, meaning this option supports <b>Form 1</b> and <b>Form 2</b> and can be overridden in a project-specific .rmakerc.</td>
+</tr>
+</tbody></table>
+
+<h1><a name="rmake-UsageGuide"></a>Usage Guide</h1>
+<h4><a name="rmake-rmakeHelp"></a>rmake Help</h4>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> rmake is a high-level make program that replicates a master workspace </td>
+</tr>
+</tbody></table>
+<p>to a remote build server and runs make.</p>
+
+<p>Usage: rmake -a [OPTION]... [TARGET]...<br/>
+<tt>rmake -p "PLATFORMS" [OPTION]... [TARGET]...</tt></p>
+
+<p>Options<br/>
+<tt>-a                         operate on all platforms in RMAKE_PLATFORMS</tt><br/>
+<tt>-p, --platform=NAMES       operate on NAMES</tt><br/>
+<tt>-l                         list configured platforms.</tt><br/>
+<tt>-r, --resource             print the configured resource for a platform</tt><br/>
+<tt>-k, --keep-going           continue on platform error</tt><br/>
+<tt>-P, --parallel             parallelize (implies -qk)</tt><br/>
+<tt>-u, --update-only          update remote workspaces, but do not make</tt><br/>
+<tt>-d, --delete               delete extraneous files from destination dirs</tt><br/>
+<tt>-D, --delete-only          delete but transfer no files (implies -du)</tt><br/>
+<tt>-i, --pedantic             ignore/exclude files not in good standing with svn</tt><br/>
+<tt>-m, --svn-meta             include svn metadata (.svn/ directories)</tt><br/>
+<tt>-F, --file-list=FILES      synchronize FILES instead of RMAKE_FILE_LIST</tt><br/>
+<tt>-R, --relative             synchronize current dir instead of RMAKE_FILE_LIST</tt><br/>
+<tt>-C, --directory=DIR        change to DIR before synchronizing or making</tt><br/>
+<tt>-L, --log-dir=DIR          write PLATFORM.log files to DIR/WORKSPACE_ID</tt><br/>
+<tt>-A, --append               append to logs rather than rotating them</tt><br/>
+<tt>-x, --exec=COMMAND         run "COMMAND platform exitcode timestamp server log"</tt><br/>
+<tt>-w, --where-am-i           print the located workspace root</tt><br/>
+<tt>--no-decorate          don't decorate/annotate build output</tt><br/>
+<tt>-c                         only run rmake-check</tt><br/>
+<tt>-q                         suppress non-error messages</tt><br/>
+<tt>-v                         increase verbosity (ex. use rsync -v)</tt><br/>
+<tt>--version              print SVN revision</tt><br/>
+<tt>-h, --help                 show this help|</tt></p>
+<h4><a name="rmake-UseCase1%3APerformaBuildinaspecificdirectory"></a>Use Case 1: Perform a Build in a specific directory</h4>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> cd trunk/klondike/src/common </td>
+</tr>
+</tbody></table>
+<p><tt>rmake -p rhel5 clean all</tt></p>
+<table class='confluenceTable'><tbody>
+<tr>
+</tr>
+</tbody></table>
+<h4><a name="rmake-UseCase2%3APerformthesamebuildonallconfiguredplatforms%28RMAKEPLATFORMS%29"></a>Use Case 2: Perform the same build on all configured platforms (RMAKE_PLATFORMS)</h4>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> rmake -a clean all</td>
+</tr>
+<tr>
+</tr>
+</tbody></table>
+<h4><a name="rmake-UseCase3%3APurgeallbuildderivedfilesfromaspecificdirectoryandrebuild"></a>Use Case 3: Purge all build-derived files from a specific directory and rebuild</h4>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'> cd ../mxauthz </td>
+</tr>
+</tbody></table>
+<p><tt>rmake -Rdi all</tt></p>
+<table class='confluenceTable'><tbody>
+<tr>
+</tr>
+<tr>
+<td class='confluenceTd'><b>Caution:</b>  Make sure you know what you are doing; using this command by mistake could require a full rebuild.</td>
+</tr>
+</tbody></table>
+<h4><a name="rmake-UseCase4%3AUsermakewithvim"></a>Use Case 4: Use rmake with vim</h4>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'>:set makeprg=TERM=dumb\ rmake\ --no-decorate\ -prhel5 </td>
+</tr>
+</tbody></table>
+<p>:make</p>
+<table class='confluenceTable'><tbody>
+<tr>
+</tr>
+</tbody></table>
+<h4><a name="rmake-UseCase5%3AUsermakewithoutan.rmakerc"></a>Use Case 5: Use rmake without an .rmakerc</h4>
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'>rhel5=user@host:path/to/build rmake -p rhel5 rpm</td>
+</tr>
+<tr>
+</tr>
+</tbody></table>
+
+<h1><a name="rmake-Time"></a>Time</h1>
+<p>When building on a different server than you are developing, time can be an issue, especially for incremental builds. It is very important to remove time differences between your Workstation and your Build Server. NTP can be useful, but nevertheless, virtual machines can sometimes have problems keeping time anyway. rmake will check for a time differential in the following ways:</p>
+<ol>
+	<li>The Build Server may not be in the future, otherwise builds might always be up-to-date.</li>
+	<li>The Build Server may not be more than 5 minutes is the past. The further is the past the Build Server is, the more it will unnecessarily rebuild.</li>
+</ol>
+
+
+<table class='confluenceTable'><tbody>
+<tr>
+<td class='confluenceTd'><b>Note:</b> When performing a full rebuild from scratch with '-d', rmake has no need to check the time differential unless '-R' was used.</td>
+</tr>
+<tr>
+<td class='confluenceTd'><b>Tip:</b> Here is an easy to set the time on your Build Server (if you have root access): </td>
+</tr>
+</tbody></table>
+<p>date | ssh root@<em>server</em> xargs -0 date -s</p>
+
+<p>A Bash alias can also be created to do this frequently:<br/>
+alias rmake='date | ssh root@<em>server</em> xargs -0 date -s; rmake'|</p>
+        </div>
+
+        <!--
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dc="http://purl.org/dc/elements/1.1/"
+         xmlns:trackback="http://madskills.com/public/xml/rss/module/trackback/">
+         <rdf:Description
+    rdf:about="http://rndwiki.atlanta.hp.com/confluence/display/SWDnas/rmake"
+    dc:identifier="http://rndwiki.atlanta.hp.com/confluence/display/SWDnas/rmake"
+    dc:title="rmake"
+    trackback:ping="http://rndwiki.atlanta.hp.com/confluence/rpc/trackback/64259078"/>
+</rdf:RDF>
+-->
+
+            
+    
+    
+    
+    
+    
+
+
+<fieldset class="hidden parameters">
+    <legend>Labels parameters</legend>
+    <input type="hidden" id="editLabel" value="Edit">
+    <input type="hidden" id="addLabel" value="Add Labels">
+    <input type="hidden" id="domainName" value="http://rndwiki.atlanta.hp.com/confluence">
+    <input type="hidden" id="pageId" value="64259078">
+    <input type="hidden" id="spaceKey" value="SWDnas">
+</fieldset>
+
+<div id="labels-section" class="pageSection">
+    <div id="default-labels-header" class="section-header">
+        <h2 id="labels-section-title" class="section-title  hidden ">Labels</h2>
+                            <a id="labels-edit" href="#" class="show-labels-editor add">Add Labels</a>
+                <a href="#" class="hide-labels-editor inline-control-link hidden">
+            Done
+        </a>
+            </div>
+
+    <div class="labels-editor">
+        <div id="labelsList">
+                    </div>
+
+        <span class="errorMessage error" id="errorSpan"></span>
+        <form method="GET" action="" id="add-labels-form">
+            <div id="labelInputSpan" class="labels-input">
+                <div id="labelOperationErrorContainer" class="hidden">
+                    <span class="error"><span class="errorMessage" id="labelOperationErrorMessage"></span></span>
+                </div>
+
+                <div class="caption">Enter labels to add to this page:</div>
+
+                <input autocomplete="off" id="labelsString" name="labelsString" value="" size="40">
+                <input type="submit" class="add-labels" value="Add">
+                <input type="submit" class="hide-labels-editor" value="Done">
+                <div id="waitImageAndStatus">
+                    <img class="waiting" alt="Please wait" src="/confluence/images/icons/wait.gif">&nbsp;
+                    <span id="labelOperationStatus" class="smalltext"></span>
+                </div>
+                <div class="auto_complete" id="labelsAutocompleteList"></div>
+                <div class="labels-tip">
+                    <div id="suggestedLabelsSpan"></div>
+                    Looking for a label? Just start typing.
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+            
+            
+
+<!--
+    Root decorator: this is a layer of abstraction that Confluence doesn't need. It will be removed eventually.
+-->
+
+
+
+
+    
+        
+    
+    
+    
+
+
+<fieldset class="parameters hidden">
+    <input type="hidden" id="deleteCommentConfirmMessage" value="Are you sure you want to remove the comment?">
+    <input type="hidden" id="collapseTooltip" value="Click to toggle the display of this comment.">
+</fieldset>
+
+
+
+
+
+<div id="comments-section" class="pageSection">
+    
+    
+    
+    
+                                    <p class="noprint">
+                <a href="/confluence/display/SWDnas/rmake?showComments=true&amp;showCommentArea=true#addcomment" id="add-comment-bottom" accesskey="m">Add Comment</a>
+            </p>
+                        </div>
+
+
+
+            
+</div>
+    <br class="clear">
+</div>
+
+
+<div id="footer">
+                    <ul id="poweredby">
+        <li class="noprint">Powered by <a href="http://www.atlassian.com/software/confluence" class="smalltext">Atlassian Confluence</a> 2.10.1, the <a href="http://www.atlassian.com/software/confluence" class="smalltext">Enterprise Wiki</a>.</li>
+        <li class="print-only">Printed by Atlassian Confluence 2.10.1, the Enterprise Wiki.</li>
+        <li class="noprint"><a href="http://jira.atlassian.com/secure/BrowseProject.jspa?id=10470" class="smalltext">Bug/feature request</a> &#8211;</li>
+        <li class="noprint"><a href="http://www.atlassian.com/about/connected.jsp?s_kwcid=Confluence-stayintouch" class="smalltext">Atlassian news</a> &#8211;</li>
+        <li class="noprint"><a href="/confluence/administrators.action">Contact administrators</a></li>
+    </ul>
+</div>
+
+
+</body>
+</html>

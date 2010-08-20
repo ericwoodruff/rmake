@@ -1,0 +1,384 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+RMAKE_HOME="$(dirname "$(readlink -en "${BASH_SOURCE}")")"
+RMAKE_BIN="$RMAKE_HOME"
+
+if [ "dumb" != "$TERM" ]; then
+BLACK="\e[0;30m"
+DARK_GRAY="\e[1;30m"
+
+BLUE="\e[0;34m"
+LIGHT_BLUE="\e[1;34m"
+
+GREEN="\e[0;32m"
+LIGHT_GREEN="\e[1;32m"
+
+CYAN="\e[0;36m"
+LIGHT_CYAN="\e[1;36m"
+
+RED="\e[0;31m"
+LIGHT_RED="\e[1;31m"
+
+PURPLE="\e[0;35m"
+LIGHT_PURPLE="\e[1;35m"
+
+BROWN="\e[0;33m"
+YELLOW="\e[1;33m"
+
+LIGHT_GRAY="\E[0;37m"
+WHITE="\e[1;37m"
+
+NO_COLOR="\e[0m"
+fi
+
+SSH=${SSH-ssh -o BatchMode=yes}
+
+# $1: user@host
+function ssh-shell () {
+	echo ${SSH} $1 -- bash -f -
+}
+
+SVN="svn --non-interactive"
+
+# Runs a test
+# $1 the test function
+# $2 the description
+# $@ any arguments to the test function
+function check () {
+	local name="$1"
+	local title="$2"
+	shift 2
+	echo -ne "   ${title}..."
+	$name "$@"
+	local result=$?
+	if [ 0 -eq $result ]; then
+		echo -e " ${GREEN}Passed$NO_COLOR"
+	else
+		echo -e " ${LIGHT_RED}Failed$NO_COLOR"
+	fi
+	return $result
+}
+
+# Runs a test
+# $1 the test function
+# $2 the description
+# $@ any arguments to the test function
+function warn () {
+	local name="$1"
+	local title="$2"
+	shift 2
+	echo -ne "   ${title}..."
+	$name "$@"
+	local result=$?
+	if [ 0 -eq $result ]; then
+		echo -e " ${GREEN}Passed$NO_COLOR"
+	else
+		echo -e " ${YELLOW}Warning$NO_COLOR"
+	fi
+	return $result
+}
+
+# Checks if $1 is installed and available in the path
+function is_installed () {
+	which $1 > /dev/null 2>&1
+}
+
+# Is rmake a symlink to rmake-color?
+function is_rmake_color () {
+	ls -l "$(which rmake 2>/dev/null)" 2>/dev/null| awk -F'-> ' '{print $2}' | grep rmake-color > /dev/null 2>&1
+}
+
+# Is rmake-bashtools sourced?
+function has_rmake_bashtools () {
+	alias makeall > /dev/null 2>&1
+}
+
+# Can logs be written to $TMP
+function is_tmp_writeable () {
+	if [ -z "$TMPDIR" ]; then local TMPDIR=/tmp; fi
+	mkdir -p -- "$TMPDIR/rmake-$USER/" > /dev/null 2>&1
+}
+
+# Is svn ls password cached?
+# $1 svn url
+function can_script_svn () {
+	${SVN} ls -- "$(readlink -f "$1")" > /dev/null 2>&1
+}
+
+
+# Can a remote host script svn? (For cfg_kernel).
+# $1 host
+# $2 url
+function can_remote_script_svn () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		${SVN} ls -- "$(readlink -f "$2")"
+	EOF
+}
+
+# Is there a rmake root?
+function has_rmake_root () {
+	"$RMAKE_BIN/rmake" -w > /dev/null 2>&1
+}
+
+# Can ssh be run non-interactive?
+# $1 [user@]host
+function can_script_ssh () {
+	$(ssh-shell $1) <<-EOF
+		echo -n
+	EOF
+}
+
+# Does the server have something installed
+# $1 [user@]host
+# $2 executable
+function is_installed_remote () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		which $2
+	EOF
+}
+
+# Can script ssh from proxy?
+# $1 proxy
+# $2 slave
+function can_proxy_script_ssh () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		$(ssh-shell $2) <<-EOS
+			echo
+		EOS
+	EOF
+}
+
+# Is dir an svn tree?
+# $1 dir
+function is_svn_tree () {
+	${SVN} info -- "$(readlink -f "$1")" > /dev/null 2>&1
+}
+
+# Does a remote file exist
+# $1 server
+# $2 file
+function does_remote_file_exist () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		eval test -e "$2"
+	EOF
+}
+
+# Does a remote dir exist
+# $1 server
+# $2 file
+function does_remote_dir_exist () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		eval test -d "$2"
+	EOF
+}
+
+# Does the local filesystem mount the remote filesystem
+# $1 local path
+# $2 remote server
+# $3 remote path
+function is_remote_filesystem_mounted () {
+	local file=".rmake.$$"
+	touch "$1/$file"
+	does_remote_file_exist $2 "$3/$file"
+	local result=$?
+	rm -f "$1/$file"
+	return $result
+}
+
+# Does the local filesystem NOT mount the remote filesystem
+# $1 local path
+# $2 remote server
+# $3 remote path
+function is_remote_filesystem_not_mounted () {
+	local file=".rmake.$$"
+	touch "$1/$file"
+	does_remote_file_exist $2 "$3/$file"
+	local result=$?
+	rm -f "$1/$file"
+	if [ 0 -eq $result ]; then
+		return 1;
+	else
+		return 0;
+	fi
+}
+
+# Is are two local filesystem paths !=
+# $1 local path
+# $2 local path2
+function do_filesystems_differ () {
+	[ ! "$1" -ef "$2" ]
+}
+
+# Is bash completion installed?
+function is_bash_completion_installed () {
+	ls -l /etc/bash_completion.d/rmake 2>&1 | awk -F'-> ' '{print $2}' | grep "rmake/bash_completion.d/rmake" > /dev/null 2>&1
+}
+
+# Is remote host linux?
+function is_remote_host_linux () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		uname -a | grep Linux
+	EOF
+}
+
+# Does a remote server have an rpm installed?
+# $1 server
+# $2 package name
+function is_remote_rpm_installed () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		rpm -q "$2"
+	EOF
+}
+
+# Check for a minimum rmake version
+# $1 revision
+function minimum_rmake_version () {
+	RMAKE_VERSION=$("$RMAKE_BIN/rmake" --version | grep "^[0-9]\+$")
+	[ ! "$RMAKE_VERSION" -lt "$1" ]
+}
+
+# Check for a minimum rsync version
+# $1 min major
+# $2 min minor
+# $3 min subminor
+function minimum_rsync_version () {
+	local version=$(rsync --version | head -n 1 | grep -o '[0-9]\.[0-9]\+\.[0-9]\+')
+	local let major=$(echo $version | cut -d. -f1)
+	local let minor=$(echo $version | cut -d. -f2)
+	local let subminor=$(echo $version | cut -d. -f3)
+
+	[ $major -gt $1 ] && return 0
+	[ $major -lt $1 ] && return 1
+	[ $minor -gt $2 ] && return 0
+	[ $minor -lt $2 ] && return 1
+	[ $subminor -ge $3 ]
+}
+
+# Check for a minimum rsync version
+# $1 server
+# $2 min major
+# $3 min minor
+# $4 min subminor
+function minimum_remote_rsync_version () {
+	$(ssh-shell $1) <<-EOF > /dev/null 2>&1
+		version=\$(rsync --version | head -n 1 | grep -o '[0-9]\.[0-9]\+\.[0-9]\+')
+		let major=\$(echo \$version | cut -d. -f1)
+		let minor=\$(echo \$version | cut -d. -f2)
+		let subminor=\$(echo \$version | cut -d. -f3)
+		[ \$major -gt $2 ] && exit 0
+		[ \$major -lt $2 ] && exit 1
+		[ \$minor -gt $3 ] && exit 0
+		[ \$minor -lt $3 ] && exit 1
+		[ \$subminor -ge $4 ]
+	EOF
+}
+
+# User-defined check stub
+function rmake-check () {
+	true
+}
+
+# User-defined check stub
+# $1 platform
+# $2 full build resource
+# $3 server
+function rmake-check-server () {
+	true
+}
+
+
+check is_tmp_writeable "Can logs be written to \$TMPDIR?" || exit 1
+
+#check is_installed "Is rmake installed?" rmake || exit 1
+warn is_rmake_color "Is rmake-color enabled?"
+check has_rmake_root "Is there a .rmake file in the parent directory path?" || exit 1
+
+. "$RMAKE_HOME/../lib/rmake-common" || exit 1
+
+if [ -n "${build_platforms}" ]; then
+	# rmake -p was used so only check what was explicitly listed
+	RMAKE_PLATFORMS="${build_platforms}"
+fi
+
+warn is_installed "Is svn installed?" svn
+warn is_svn_tree "Is ${LOCAL_WORKSPACE_ROOT} an svn tree?" "${LOCAL_WORKSPACE_ROOT}"
+svnurl=$(${SVN} info "$(readlink -f "${LOCAL_WORKSPACE_ROOT}")" | grep URL | sed -re 's#[^:]+: ([^:]+://[^/]+)/.*#\1#')
+warn can_script_svn "Can svn commands to $svnurl be scripted?" $svnurl
+
+check is_installed "Is ssh installed?" ssh || exit 1
+
+if [ -n "${RMAKE_PROXY}" ]; then
+	check can_script_ssh "Can $USER ssh $(if [ -n "${PROXY_USER}" ]; then echo "as ${PROXY_USER}";fi) to proxy server $PROXY_HOST?" "$PROXY_USER_HOST" || exit 1
+	check is_installed_remote "Is ssh installed on proxy server $PROXY_HOST?" "$PROXY_USER_HOST" ssh || exit 1
+	check is_installed_remote "Is rsync installed on proxy server $PROXY_HOST?" "$PROXY_USER_HOST" rsync || exit 1
+	check minimum_remote_rsync_version "Is rsync at least version 2.6.9 on proxy server $PROXY_HOST?" "${PROXY_USER_HOST}" 2 6 9 || exit 1
+	check does_remote_dir_exist "Does ${PROXY_USER_HOST}:${PROXY_WORKSPACE_ROOT} exist?" "${PROXY_USER_HOST}" "${PROXY_WORKSPACE_ROOT}" || exit 1
+	check is_remote_filesystem_mounted "Does ${LOCAL_WORKSPACE_ROOT} mount ${PROXY_USER_HOST}:${PROXY_WORKSPACE_ROOT}?" "${LOCAL_WORKSPACE_ROOT}" "${PROXY_USER_HOST}" "${PROXY_WORKSPACE_ROOT}" || exit 1
+else
+	check is_installed "Is rsync installed?" rsync || exit 1
+	check minimum_rsync_version "Is rsync at least version 2.6.9?" 2 6 9 || exit 1
+
+fi
+
+function listservers () {
+	for i in $RMAKE_PLATFORMS; do
+		rmake-resource-server $i
+		echo
+	done | sort -bu | xargs
+}
+servers="$(listservers)"
+
+for server in $servers; do
+	check can_script_ssh "Can ssh commands be run on $server?" "$server" || exit 1
+	check is_installed_remote "Is rsync installed on $server?" "$server" rsync || exit 1
+
+	if [ -n "${RMAKE_PROXY}" ]; then
+		check can_proxy_script_ssh "Can $PROXY_USER_HOST run ssh commands on $server?" $PROXY_USER_HOST $server || exit 1
+	fi
+done
+
+#warn is_installed "Is mail installed?" $MAILER
+
+warn is_installed "Is xsltproc installed?" xsltproc
+
+warn is_bash_completion_installed "Is rmake bash completion installed?"
+
+rmake-check || exit 1
+for i in $(for p in $RMAKE_PLATFORMS;do echo "$p";done | sort -bu); do
+	resource=$(eval echo \$$i)
+	if [ -n "${resource}" ]; then
+		server="$(rmake-resource-server "$i")"
+		if [ 0 -eq $? ]; then
+			buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $i)")
+			check is_remote_filesystem_not_mounted "Is ${resource} distinct from the svn tree?" "${LOCAL_WORKSPACE_ROOT}" $server "${buildroot}"|| exit 1
+		else
+			buildroot=$(rmake-resource-buildroot $i)
+			check do_filesystems_differ "Is ${buildroot} distinct from the svn tree?" "${LOCAL_WORKSPACE_ROOT}" "${buildroot}" || exit 1
+		fi
+		# server might be empty for local builds
+		rmake-check-server $i "$resource" $server || exit 1
+	fi
+	unset resource
+done
+
+exit 0

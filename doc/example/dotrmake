@@ -1,0 +1,207 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+##############################################################
+## This file is a shared rmake project file.
+##
+## Any of these settings can be overridden in your .rmakerc.
+##############################################################
+
+## This is the default platform list. You will need to define
+## variables in your .rmakerc file that specify the
+## user@host:path/ for each one.
+##
+## e.x:
+##    rhel5=ewoodruff@rhel5:~/build/trunk/
+##
+#
+RMAKE_PLATFORMS="centos5"
+
+RMAKE_SSH_OPTIONS="-o CheckHostIP=no -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no"
+
+## This is the default file list but it can be overridden in
+## your .rmakerc.
+##
+## e.x.
+##   RMAKE_FILE_LIST="klondike solutions/mxfs/linux"
+#
+RMAKE_FILE_LIST="."
+
+# Is there a ~/.subversion?
+function has_dot_subversion () {
+	ls ~/.subversion/ > /dev/null 2>&1
+}
+
+# Does subversion use the svntools config?
+function subversion_uses_svntools_config () {
+	readlink ~/.subversion/config | grep -q svntools >/dev/null 2>&1
+}
+
+function rmake-check () {
+	warn has_dot_subversion "Is there a ~/.subversion directory?"
+	warn subversion_uses_svntools_config "   Does subversion use the svntools/config?"
+	check minimum_rmake_version "Is rmake at least revision 135248?" 135248 || return $?
+}
+
+# $1: server
+# $2: min swap size in kB
+function has_minimum_swap_memory {
+	local kB="$($(rmake-shell $1) <<-EOF
+		cat /proc/meminfo | grep SwapTotal | grep "[0-9]\+" -o
+	EOF
+	)"
+	[ $2 -le $kB ]
+}
+
+function rmake-check-server () {
+	local platform=$1
+	local resource=$2
+	local server=$3
+
+	case "$platform" in
+		(centos*|rhel*)
+			check does_remote_file_exist "Is $server a RedHat server?" $server /etc/redhat-release || return $?
+		;;
+
+		(sles*)
+			check does_remote_file_exist "Is $server a SLES server?" $server /etc/SuSE-release || return $?
+		;;
+	esac
+
+	local devicemapper="device-mapper"
+	case "$platform" in
+		(sles10)
+			devicemapper="device-mapper-devel"
+			;;
+	esac
+
+	case "$platform" in
+		(rhel*|centos*)
+			makedefaults="$(dirname $(readlink -nm ${BASH_SOURCE}))/klondike/make.defaults"
+			VENDREL=$($(rmake-shell $server) <<-EOF
+				make -f - KFULVERS=skip VENDREL <<"EOS"
+				$(cat ${makedefaults})
+				EOS
+			EOF
+			)
+			local kcache=/build/kcache/$VENDREL.x86_64
+			check does_remote_file_exist "Does ${server}:/build/kcache provide the $VENDREL kcache?" $server ${kcache} || return $?
+			check is_remote_rpm_installed "Is the pam-devel package installed on $server?" $server pam-devel || return $?
+			check is_remote_rpm_installed "Is the openldap-devel package installed on $server?" $server openldap-devel || return $?
+			check is_remote_rpm_installed "Is the ${devicemapper} package installed on $server?" $server ${devicemapper} || return $?
+		;;
+	esac
+
+	check has_minimum_swap_memory "Does $server have at least 1G swap?" $server 1048576 || return $?
+}
+
+# Check for build-derived files that could have failed the build
+function rmake-post-make-failure-hook () {
+	local platform=$1
+	shift 1
+	local parameters="$@"
+	local buildroot="$(rmake-resource-buildroot $platform)"
+
+	if [ -n "${pedantic}" ]; then
+		# Skip searching for build products in the source tree if pedantically filtering
+		return 0
+	fi
+
+	local paths=( 
+		"klondike/src/swiftcurrent/src/BUILD_OUTPUT"
+		"*x86_64-*"
+		"core/src/bridge/build"
+		"*/mxs_messages.h"
+	)
+	local files=(
+		$(
+			cd "$LOCAL_WORKSPACE_ROOT" &&
+			find -false $(for p in ${paths[@]}; do echo "-o -path ./$p";done)
+		)
+	)
+	if [ 0 != ${#files[@]} ]; then
+		echo
+		echo "Warning: The following known build products in the source tree may have contributed to the build failure:"
+		for f in ${files[@]}; do
+			echo ${f#./}
+		done
+	fi
+}
+
+## Per-server make.
+## SSH, establish KCACHE in Linux then run make.
+## SSH, source env on Windows then run nmake.
+#
+function rmake-make () {
+	local platform=$1
+	shift 1
+	local parameters="$@"
+	local server=$(rmake-resource-server $platform)
+	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+
+	local result
+	case "$platform" in
+		(centos5|rhel5)
+			$(rmake-shell $server) <<-EOF
+				if [ -d /dev/shm ]; then
+					export TMPDIR=/dev/shm
+				fi
+				export KCACHE=\$(ls -d /build/kcache/kcache.latest)
+				export BUILDDIR=${buildroot}
+				export BUILD_TYPE=checked
+				cd ${buildroot}/$(rmake-workspace-pwd) &&
+				make ${parameters}
+			EOF
+			result=$?
+			;;
+		(centos5retail|rhel5retail)
+			$(rmake-shell $server) <<-EOF
+				if [ -d /dev/shm ]; then
+					export TMPDIR=/dev/shm
+				fi
+				export KCACHE=\$(ls -d /build/kcache/kcache.latest)
+				export BUILDDIR=${buildroot}
+				export BUILD_TYPE=retail
+				cd ${buildroot}/$(rmake-workspace-pwd) &&
+				make ${parameters}
+				EOF
+			result=$?
+			;;
+		(centos5jam|rhel5jam)
+			$(rmake-shell $server) <<-EOF
+				if [ -d /dev/shm ]; then
+					export TMPDIR=/dev/shm
+				fi
+				export KCACHE=\$(ls -d /build/kcache/kcache.latest)
+				export BJAM=${buildroot}/build/external/boost-build/bin/bjam
+				make -s -C ${buildroot}/build/external/boost-build/ jam &&
+				cd ${buildroot}/$(rmake-workspace-pwd) &&
+				\${BJAM} ${parameters}
+			EOF
+			result=$?
+			;;
+		(*)
+			echo $platform not configured.
+			return 1
+			;;
+	esac
+	return $result
+}

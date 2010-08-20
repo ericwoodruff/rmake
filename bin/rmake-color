@@ -1,0 +1,77 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+
+RMAKE_HOME="$(dirname "$(readlink -en "${BASH_SOURCE}")")"
+RMAKE_BIN="$RMAKE_HOME"
+
+BLACK="\e[0;30m"
+DARK_GRAY="\e[1;30m"
+
+BLUE="\e[0;34m"
+LIGHT_BLUE="\e[1;34m"
+
+GREEN="\e[0;32m"
+LIGHT_GREEN="\e[1;32m"
+
+CYAN="\e[0;36m"
+LIGHT_CYAN="\e[1;36m"
+
+RED="\e[0;31m"
+LIGHT_RED="\e[1;31m"
+
+PURPLE="\e[0;35m"
+LIGHT_PURPLE="\e[1;35m"
+
+BROWN="\e[0;33m"
+YELLOW="\e[1;33m"
+
+LIGHT_GRAY="\E[0;37m"
+WHITE="\e[1;37m"
+
+NO_COLOR="\e[0m"
+
+# Colorize the output of some command with sed
+# $1 color name: e.x. GREEN
+# $2 sed pattern
+function csed () {
+	local color=$1
+	local pattern=$2
+	shift 2
+	echo "s%${pattern}%$(eval echo -ne \$${color})&$(echo -ne $NO_COLOR)%g"
+}
+
+if [ ${TERM} = "dumb" ]; then
+	$RMAKE_BIN/rmake "$@"
+else
+	set -o pipefail
+
+	"$RMAKE_BIN/rmake" "$@" 2>&1 | \
+		sed -u \
+		-e "s/\([^ ]*\):\([^ ]*\): /"$(echo -ne $BROWN)"\1"$(echo -ne $NO_COLOR)":"$(echo -ne $CYAN)"\2"$(echo -ne $NO_COLOR)":"$(echo -ne $NO_COLOR)" /g" \
+		-e "$(csed GREEN "Synchronizing.*")" \
+		-e "$(csed RED "[D|d]eleting.*")" \
+		-e "$(csed LIGHT_RED " [E|e]rror.*")" \
+		-e "$(csed LIGHT_RED " [F|a]ailed.*")" \
+		-e "$(csed PURPLE " [W|w]arning.*")" \
+		-e "$(csed LIGHT_GREEN "[S|s]uccess.*")" \
+		-e "$(csed BROWN ".*pedantic.*")"
+fi

@@ -1,0 +1,402 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+# Generally this file should be sourced, like by your .bashrc.
+
+function getEditor () {
+	if [ -n "$SVN_EDITOR" ]; then
+		cat <<-EOF
+		$SVN_EDITOR
+		EOF
+	elif [ -n "$EDITOR" ]; then
+		cat <<-EOF
+		$EDITOR
+		EOF
+	else
+		echo unknown
+	fi
+}
+
+function isViEditor () {
+	local editor="$(getEditor)"
+	if [ "$editor" != "unknown" ]; then
+		if [ "$editor" = "vi" ] || [ "$editor" = "vim" ]; then
+			return 0
+		else
+			return 1
+		fi
+	else
+		view --help | grep "vi" >/dev/null 2>&1
+	fi
+}
+
+if isViEditor; then
+	export SVN_EDITOR='\
+		vim -c "4,\$y" \
+		-c "below new" \
+		-c "put" \
+		-c "set syntax=diff buftype=nofile nowrap nobackup previewwindow bufhidden=delete" \
+		-c "silent execute \"%!cut -c-5 --complement | xargs svn diff --no-diff-deleted -x --ignore-eol-style\" | redraw" \
+		-c "wincmd k" +0'
+fi
+
+# Shows files unknown to the repository
+# Ex. svnnew
+function svnnew () { 
+	svn status | grep ? | sed -re 's/^\?\s+//'
+}
+
+# Shows files that are ignored by svn:ignore and files unknown to the repository
+# Useful if you want to purify your tree
+# Ex. svndirty
+function svndirty () { 
+	svn status --no-ignore | grep '^[\?I~]' | sed -re 's/^[\?I~]\s+//'
+}
+
+# Moves dirty files in the tree to the .svnpurge-<date> directory
+function svnclean () { 
+	archive=".svntrash/$(date +%m-%d-%y-%H-%M-%S)";
+	mkdir .svntrash > /dev/null 2>&1;
+	echo "Relocating non-svn tracked files in $PWD to $archive...";
+	set -o pipefail;
+	svndirty | grep -v '\.svntrash' | rsync --relative --remove-source-files -ai --out-format=%n --files-from=- . $archive
+}
+
+# Permanently erases non-svn tracked files from the currrent
+# working directory, recursively
+function svnpurge () {
+	echo "Purging non-svn tracked files in $PWD..."
+	set -o pipefail
+	svndirty | while read f; do
+		rm -r "$f"
+	done
+}
+
+# Shows pending changes to the repository
+# Ex. svnmod
+function svnmod () {
+	svn status | grep '^\s\?[!AMCDR]'
+}
+
+# Grep an svn tree excluding base
+function svngrep () {
+	grep "$@" | grep -v "\.svn"
+}
+
+# Appends a property to a file or directory
+# Ex. svnappendprop svn:externals some/dir "build https://svn/trunk/build"
+function svnappendprop () { 
+	name=$1
+	location="$2"
+	shift 2; 
+	svn propset ${name} ${location} -F <(cat <(svn propget ${name} ${location}) <(for i in "$@"; do echo $i; done)); 
+	if [ 0 = $? ]; then 
+		svn propget ${name} ${location}
+	fi
+}
+
+# Sorts the properties of a file or directory
+# Ex. svnsortprops mydir
+function svnsortprops () {
+	propf=/tmp/.sortprop
+	name=$1
+	for p in $(svn status | grep -v ? | awk '{ print $2 }'); do
+		svn proptset $1 $p -F <(svn proptget $1 $p | sort -u)
+	done
+}
+
+# Adds a file or directory to svn:ignore
+function svnignore () {
+	for i in "$@"; do
+		svnappendprop svn:ignore $(dirname $i) $(basename $i)
+	done
+}
+
+# Shows diff ignoring eol-style and doesn't show deleted files
+function svndiff () {
+	svn diff --no-diff-deleted -x --ignore-eol-style "$@"
+}
+
+# Shows diff as above in your favorite editor
+# Note: svndiffview -x -w is a good way to see
+#       the diff without the noise of changes
+#       only in whitespace.
+function svndiffview () {
+	if [ "$EDITOR" = "vim" ] || [ "$EDITOR" = "vi" ]; then
+		local IFS=$'\x0a'
+		local a=( $(svn status "$@" | grep "^M" | cut -c9- ) )
+
+		(
+		left=/tmp/$USER.left.$$
+		right=/tmp/$USER.right.$$
+		trap "rm -f $left $right >/dev/null 2>&1; exit 1" HUP INT ABRT EXIT TERM KILL
+
+		for f in ${a[@]}; do
+			echo "--------------------------------------------------------------------------------"
+			echo "++++ $f:"
+			echo "++++ $f: (Modified)"
+			echo "--------------------------------------------------------------------------------"
+			cat $f
+			echo "================================================================================"
+			for i in 1 2 3 4 5; do echo; done
+		done > $left
+		for f in ${a[@]}; do
+			echo "--------------------------------------------------------------------------------"
+			dir=${f%/*}
+			file=${f##*/}
+			slash="/"
+			if [ "$dir" = "$f" ]; then
+				dir=""
+				slash=""
+			fi
+			base=${dir}${slash}.svn/text-base/${f##*/}.svn-base
+			echo "++++ ${dir}${slash}${f##*/}:"
+			echo "++++ ${base}: (SVN)"
+			echo "--------------------------------------------------------------------------------"
+			cat ${base}
+			echo "================================================================================"
+			for i in 1 2 3 4 5; do echo; done
+		done > $right
+
+		vimdiff -c "set diffopt=filler,context:10,iwhite" $left $right
+		)
+	else
+		svndiff "$@" | view -
+	fi
+}
+
+# Sets the eol-style property on a file
+# # Ex. svneolstyle native myfile
+function svneolstyle () {
+	style=$1
+	shift 1;
+	for i in "$@"; do
+		svn propset svn:eol-style $style "$i"
+	done
+}
+
+# Converts a wildcard pattern to regex useful for grep or sed
+function wildcard2regex () {
+	echo $1 | sed -e 's$\.$\\.$g' | sed -e 's$\*$.*$g' | sed -e 's$\?$.$g'
+}
+
+SOURCE_FILES="\
+	*.cpp \
+	*.c \
+	*.h \
+	*.hpp \
+	*.hxx \
+	Makefile \
+	Makefile.nt \
+	Makefile.am \
+	Makefile.in \
+	*.mk \
+	*.ml \
+	*.txt \
+	*.conf \
+	*.m4 \
+	*.sh \
+	*.bat \
+	*.py \
+	*.cs \
+	*.java \
+	*.manifest \
+	.project \
+	.classpath \
+	*.launch \
+	*.eclipse.*.prefs \
+	*.properties \
+	*.xml \
+	*.xsl \
+	*.xsd \
+	*.psmc \
+	*.html \
+	*.htm \
+	*.js \
+	*.php \
+	*.svg \
+"
+
+# Shows all files in the tree considered to be 'source files'
+# See SOURCE_FILES
+function svnsrcfiles () {
+	PATTERN=""
+	for i in $SOURCE_FILES; do
+		if [ "" = "$PATTERN" ]; then
+			PATTERN='\('$(wildcard2regex $i)'$\)'
+		else
+			PATTERN=${PATTERN}'\|\('$(wildcard2regex $i)'$\)'
+		fi
+	done
+	svn ls -R | grep --color=auto -e "$PATTERN"
+}
+
+# Shows files that are considered source files that don't have the native eol-style
+function svnnonnativesrcfiles () {
+	svnsrcfiles | while read f; do
+		if ! svn propget svn:eol-style "$f" | grep native > /dev/null; then
+			echo $f
+		fi
+	done
+}
+
+# Perform a sparse checkout of an svn URL
+function svn-sparse-co () {
+	local dir
+	local url
+
+	if [ $# -ne 1 -o "$1" == "--help" ]; then
+		echo "Usage: ${FUNCNAME} URL" >&2
+		echo "Perform a sparse checkout of an svn URL." >&2
+		return 1
+	fi
+
+	set -- ${1//\// }
+	if [ $# -lt 3 ]; then
+		echo "${FUNCNAME}: Malformed URL" >&2
+		return 1
+	fi
+	url="$1//$2"
+
+	case "$2" in
+		svn|svn.pdx.polyserve.com|pssvn.cce.hp.com)
+			dir=svn
+			;;
+
+		*)
+			dir=$2
+			;;
+	esac
+	shift 2
+
+	mkdir -p ${HOME}
+	cd ${HOME}
+
+	if [ ! -d ${dir} ]; then
+		if ! svn co --depth=empty --quiet ${url} ${dir} ; then
+			return 1
+		fi
+	fi
+
+	cd ${dir}
+
+	while [ $# -gt 1 ]; do
+		url="${url}/$1"
+		if ! svn up --depth=empty --quiet $1 ; then
+			return 1
+		fi
+		if [ -d $1 ]; then
+			cd $1
+			shift
+		elif [ -f $1 ]; then
+			echo "${FUNCNAME}: ${url} is a file." >&2
+			return 1
+		else
+			echo "${FUNCNAME}: ${url} does not exist." >&2
+			return 1
+		fi
+	done
+
+	url="${url}/$1"
+	if ! svn up --quiet $1 ; then
+		return 1
+	fi
+
+	if [ -d $1 ]; then
+		cd $1
+		shift
+	elif [ ! -e $1 ] ; then
+		echo "${FUNCNAME}: ${url} does not exist." >&2
+		return 1
+	fi
+}
+
+# $1 file/dir
+function svnrevision () {
+	svn info "$(readlink -f "$1")" | grep Revision | cut -d: -f2 | cut -d" " -f2
+}
+
+# Move changes from ~/svn/trunk/sns to another copy in ~/svn/trunk/sns-stage
+# for test builds and commits.
+#
+# Preparation:
+#   mv ~/svn/trunk/sns ~/svn/trunk/sns-devel
+#   svn up ~/svn/trunk/sns
+#   mv ~/svn/trunk/sns ~/svn/trunk/sns-stage
+#   ln -s ~/svn/trunk/sns-devel ~/svn/trunk/sns
+#   ln -s ~/svn/trunk/sns-stage ~/svn/trunk/stage
+#   svn up ~/svn/trunk/sns ~/svn/trunk/stage
+#
+#   Add to ~/svn/trunk/stage/.rmakerc:
+#      rhel5=user@server:svn/trunk/sns
+#
+# Usage:
+#   rmake -p rhel5 -C ~/svn/trunk/stage -d rpm
+#
+# $1: stage name "sns-stage"
+# $@: file or dir to stage
+function svnstage () {
+	dir="$PWD"
+	while [ -z "$root" ]; do
+		if [ -z "$dir" ] || [ "$dir" = "/" ]; then
+			echo "No .stageroot file found!"
+			return 1
+			break
+		fi
+		if [ -f "$dir/.stageroot" ] || [ -f "$dir/.rmake" ]; then
+			local root="$dir"
+			break
+		else
+			dir="${dir%/*}"
+		fi
+	done
+
+	if [ "$1" = "$(basename "$root")" ]; then
+		echo "Cannot stage to the source location!"
+		return 1
+	fi
+
+	local stagedir="$(readlink -f "$root/../$1")"
+	local treepath="${PWD#$root}"
+	shift
+	if [ "$treepath" = "$PWD" ]; then
+		echo "Must be in a subdirectory of $root"
+		return 1
+	fi
+
+	for f in "$@"; do
+		local dest="$stagedir/$treepath/$f"
+		if [ "$(svnrevision "$f")" != "$(svnrevision "$dest")" ]; then
+			echo "svn revisions of source and destination must match!"
+			return 1
+		fi
+
+		echo "Staging $f to $dest"
+		cp -abT "$f" "$f~" || return $?
+		cp -abT "$f" "$dest" || return $?
+		svn revert -R "$f" || return $?
+	done
+}
+
+# Short for svnstage sns-stage ...
+function snsstage () {
+	svnstage sns-stage "$@"
+}

@@ -1,0 +1,390 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+cat <<EOF
+
+Welcome to easy-rmake!
+
+This tool is designed to:
+  * generate local ssh keys if the don't exist
+  * create and/or configure ~/.rmakerc
+  * configure build machines as needed
+      + create rmake user (i.e. $(whoami))
+  * run rmake-check
+
+
+For the latest, version please run directly from svn using:
+
+    bash -f <(svn cat https://swd-nas.csd200a.com/svn/swd-nas/trunk/tools/rmake/HP/easy-rmake.sh)
+
+easy-rmake can be run many times without side-effects other than 'svn update'.
+
+Press enter to continue...
+EOF
+
+read
+
+# The recommended way to test this script is with something like:
+#      ssh -t me@myvm1 bash -c "$(cat easy-rmake.sh)"
+# Thus, during development you don't actually disturb anything on 
+# your workstation and the vm can be reverted to re-test.
+
+easyrmake=easy-rmake.sh
+
+ssh=ssh
+svn=svn
+repository=https://swd-nas.csd200a.com/svn/swd-nas
+
+svnroot='$HOME/svn'
+rmakerc='$HOME/.rmakerc'
+dotsubversion='$HOME/.subversion'
+rmakedir="rmake"
+toolsbin="${toolsroot}/bin"
+rmakeroot="${toolsroot}/$rmakedir"
+
+OSNAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+if [[ "$(echo "${OSNAME}" | grep -o "cygwin")" == cygwin* ]]; then
+	OSNAME="winnt"
+else
+	OSNAME="linux"
+fi
+
+# Expand a path variable
+function exp () {
+	eval eval echo \$$1
+}
+
+# Expand a path variable natively (for svn)
+function nativeexp () {
+	if [ "${OSNAME}" = "winnt" ]; then
+		cygpath -wm "$(eval eval echo \$$1)"
+	else
+		exp $1
+	fi
+}
+
+# Indent the output of a command
+function indent () {
+	"$@" > >(sed -ue 's/^/        /') 2>&1
+}
+
+# Execute a command with error checking
+function cmd () {
+	echo "    ""$@"
+	indent "$@"
+	if [ 0 != $? ]; then
+		echo
+		echo "Failed."
+		exit $result
+	fi
+}
+
+# Execute a command in a dir with error checking
+# $1 path
+# $@ command
+function dircmd () {
+	local dir="$1"
+	shift
+	(
+	cd "$dir"
+	echo "    cd $dir && ""$@"
+	indent "$@"
+	if [ 0 != $? ]; then
+		echo
+		echo "Failed."
+		exit $result
+	fi
+	)
+}
+
+# Update an svn path
+# $1 path
+function svnup () {
+	if [ -L "$1" ]; then
+		dircmd "$1" ${svn} update .
+	else
+		cmd ${svn} update "$1"
+	fi
+}
+
+# Update an svn path
+# $1 path
+function svnup-N () {
+	if [ -L "$1" ]; then
+		dircmd "$1" ${svn} update -N .
+	else
+		cmd ${svn} update -N "$1"
+	fi
+}
+
+# Execute a command quietly
+function silent () {
+	"$@" >/dev/null 2>&1
+}
+
+function silentcmd () {
+	silent cmd "$@"
+}
+
+# Message the user, wait for enter.
+# $@ message contents
+function message () {
+	echo
+	echo "$@"
+	echo
+	echo "Press enter to continue..."
+	read
+}
+
+# Status message the user
+# $@ message contents
+function status () {
+	echo
+	echo -e "$@"
+}
+
+# Print a error message and exit
+# $@ message contents
+function error () {
+	status Error: "$@"
+	exit 1
+}
+
+if ! silent which getopt; then
+	error "getopt is not installed"
+fi
+
+
+# $1: key file
+# $2: password
+function easy-testp12-pass () {
+	openssl pkcs12 -in "$1" -noout -passin stdin <<-EOF >/dev/null
+		$2
+	EOF
+}
+
+# Check for existing svnroot
+if [ -e "$(exp svnroot)" ]; then
+	if [ ! -f "$(exp svnroot)/.easy-rmake" ]; then
+		svnrootnew="$(exp svnroot).easy-rmake"
+		message "$(exp svnroot) already exists, using $(exp svnrootnew)."
+		svnroot=$svnrootnew
+	fi
+fi
+
+#
+# Does the remote host accept passwordless ssh connections?
+# $1 remote host, in user@server form
+#
+function easy-has-batch-ssh () {
+	local host="$1"
+	shift
+	ssh -o BatchMode=yes ${host} true || return $?
+}
+
+#
+# Is the remote host available
+# $1 remote host, in user@server form
+#
+function easy-is-remote-host-available () {
+	local host="$1"
+	shift
+	ssh -o BatchMode=yes ${host} echo 2>&1 | grep -v "connect to host" >/dev/null
+}
+
+
+#
+# Setup the ssh keys to the remote host.
+# $1 remote host, in user@server form
+#
+function easy-ssh-copyid () {
+	local host="$1"
+	shift
+
+	# TODO Check permissions on ~/.ssh
+
+	for i in identity id_dsa id_rsa; do
+		identity="$HOME/.ssh/$i"
+		if [ -f "$identity" ]; then
+			break
+		fi
+	done
+
+	if [ ! -f "${identity}" ]; then
+		identity="$HOME/.ssh/id_dsa"
+		status Generating SSH keys and ${identity}...
+		indent cp -rab "$HOME/.ssh"{,.old} || return $?
+		indent ssh-keygen -q -t dsa -f "${identity}" -N "" || return $?
+	fi
+
+	identity="${identity}.pub"
+	indent ssh -o NumberOfPasswordPrompts=1 ${host} bash -f - <<-EOF || return $?
+		[ -d "\$HOME/.ssh" ] || mkdir "\$HOME/.ssh"
+		cat <<-eof >> "\$HOME/.ssh/authorized_keys"
+			$(cat "$identity")
+		eof
+		chmod go-w "\$HOME/.ssh" "\$HOME/.ssh/authorized_keys"
+		exit 0
+	EOF
+
+	if ! easy-has-batch-ssh ${host}; then
+		message "There is a problem with passwordless ssh to ${host}, please check your configuration."
+		return 1
+	fi
+}
+
+# Add the build servers missing from rmakerc
+for p in $projects; do
+	project_path="$(exp svnroot)/$p"
+	for platform in $(cd "$project_path" && "$(exp rmakeroot)/rmake" -l); do
+		if [ -z "${platform/win*/}" ]; then
+			continue
+		fi
+
+		while [ true ]; do 
+			resource=$(cd "$project_path" && "$(exp rmakeroot)/rmake" -r $platform)
+			result=$?
+			userserver=${resource%:*}
+			server=${userserver#*@}
+			user=${userserver%%@*}
+
+			status "Examining $platform=$resource..."
+			if [ "root" = "$user" ]; then
+				status "Building as root is not recommended. Please specify another user name like '$(whoami)'\nand it will be added to the build server for you."
+				result=1
+			fi
+
+			if [ "localhost" = "$server" ] || [ -z "${resource##/*}" ]; then
+				message "Running easy-rmake on a build server is not recommended."
+			fi
+
+			if [ 0 = $result ]; then
+				status "Validating $userserver..."
+				if easy-is-remote-host-available $userserver; then
+					continue 2
+				fi
+
+				status "Failed to communicate with $server."
+			fi
+
+			echo
+			echo "Please enter the build server for the $platform platform [ex. $(whoami)@tmr11sNrbvm]"
+			echo "or leave blank to skip."
+			read -p "? " userserver
+
+			if [ -z "${userserver}" ]; then
+				continue 2
+			fi
+
+			cat >> "$(exp rmakerc)" <<-EOF
+
+				# Added by $easyrmake
+				$platform=$userserver
+			EOF
+		done
+	done
+done
+
+function easy-server-setup-linux () {
+	cat <<-EOF
+	#! /bin/bash
+
+	for i in ${user}; do
+		user=\$i
+		# Add user account to build server if necessary
+		if ! id \${user} >/dev/null 2>&1 ; then
+			adduser \${user} \$(if [ "\${user}" = "$(whoami)" ]; then echo "--uid $(id -u)"; fi) || exit \$?
+			echo "matrix^^" | passwd --stdin \${user} || exit \$?
+			mkdir /home/\${user}/.ssh || exit \$?
+			chmod --reference /root/.ssh /home/\${user}/.ssh || exit \$?
+			tail -n 1 /root/.ssh/authorized_keys > /home/\${user}/.ssh/authorized_keys || exit \$?
+			chmod --reference /root/.ssh/authorized_keys /home/\${user}/.ssh/authorized_keys || exit \$?
+			chown \${user}.\${user} -R /home/\${user}/.ssh || exit \$?
+		fi
+	done
+	EOF
+}
+
+status "To configure a build server, it is necessary to login as root.\nIf you do not have root credentials, you may press enter to skip this step."
+
+# Setup the server and add authorized SSH keys
+for p in $projects; do
+	project_path="$(exp svnroot)/$p"
+	for platform in $(cd "$project_path" && "$(exp rmakeroot)/rmake" -l); do
+		# TODO - Windows servers?
+		if [ -z "${platform/win*/}" ]; then
+			continue
+		fi
+
+		resource=$(cd "$project_path" && "$(exp rmakeroot)/rmake" -r $platform)
+		userserver=${resource%:*}
+		server=${userserver#*@}
+		user=${userserver%@*}
+		[ "${user}" != "${server}" ] || unset user
+		[ -n "${user}" ] || user=$(whoami)
+
+		status "Checking SSH key authorization for root@${server}..."
+		if easy-has-batch-ssh root@${server} || easy-ssh-copyid root@${server}; then
+
+			# Once root can login, we can copy the authorized key to
+			# any newly created user's .ssh/authorized_keys file
+			# All accounts are created using the same password, but
+			# the user knows the root password and can change it
+			# later.
+			ssh -t root@${server} -- "$(easy-server-setup-linux)"
+
+			if [ 0 != $? ]; then
+				message "Failed to validate/configure ${server}."
+			else
+				status "${server} setup and validated successfully."
+			fi
+
+		else
+			message "Failed to access ${server} as root, build server validity not checked."
+		fi
+
+		status "Checking SSH key authorization for ${userserver}..."
+		if ! easy-has-batch-ssh ${userserver}; then
+			cmd easy-ssh-copyid ${userserver}
+		fi
+	done
+done
+
+status "Running final checks..."
+for p in $projects; do
+	project_path="$(exp svnroot)/$p"
+	cmd bash -l -c "cd \"${project_path}\" && rmake -c" || exit $?
+done
+
+echo
+echo
+echo "Congratulations, all checks passed. You are now ready to use rmake."
+echo
+echo "For example:"
+
+for p in $projects; do
+	project_path="$(exp svnroot)/$p"
+	echo
+	echo "cd ${project_path}"
+	for platform in $(cd "$project_path" && "$(exp rmakeroot)/rmake" -l); do
+		echo "rmake -p ${platform} rpm"
+	done
+done

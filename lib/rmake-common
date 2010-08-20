@@ -1,0 +1,262 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+function svn_revision () {
+	echo "$1" | sed -re 's/\$Revision: ([0-9]+) \$/\1/'
+}
+
+RMAKE_COMMON_REVISION=$(svn_revision '$Revision: 182 $')
+
+RMAKE_HOME="$(dirname "$(dirname "$(readlink -en "${BASH_SOURCE}")")")"
+
+RMAKE_BIN="$RMAKE_HOME/bin"
+RMAKE_LIB="$RMAKE_HOME/lib"
+
+RMAKE_RC=".rmakerc"
+WORKSPACE_RC=".rmake"
+
+SSH=${SSH-ssh -T -o BatchMode=yes}
+RSYNC=${RSYNC-rsync}
+export RSYNC_RSH="$SSH"
+
+OSNAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+if [[ "${OSNAME}" == cygwin* ]]; then
+	OSNAME="winnt"
+	TMP_DIR="temp"
+	MAILER=/usr/sbin/ssmtp
+else
+	OSNAME="linux"
+	MAILER=/usr/sbin/sendmail
+fi
+
+function max () {
+	if [ ! "$2" -gt "$1" ]; then
+		echo -n $1
+		return 0
+	fi
+	echo -n $2
+}
+
+if [ -z "$TMPDIR" ]; then
+	TMPDIR=/tmp
+fi
+
+# $1 Start directory
+function rmake-findworkspace () {
+	local root=""
+	dir="$1"
+	while [ -z "$root" ]; do
+		if [ -z "$dir" ]; then
+			break
+		fi
+		if [ -f "$dir/$WORKSPACE_RC" ]; then
+			root="$dir"
+			break
+		else
+			if [ "/" = "$dir" ]; then
+				return 1
+			fi
+			dir="${dir%/*}"
+		fi
+	done
+	echo -n $root
+}
+
+# Get the current working directory from rmake's perspective
+function rmake-pwd () {
+	if [ "true" = $RMAKE_USE_BIN_PWD ]; then
+		/bin/pwd
+	else
+		if [ "$OSNAME" = "winnt" ]; then
+			cygpath -u "$PWD"
+		else
+			echo -n $PWD
+		fi
+	fi
+}
+
+# Get the current working directory relative to LOCAL_WORKSPACE_ROOT
+function rmake-workspace-pwd () {
+	local pwd=$(rmake-pwd)
+	if [ "${LOCAL_WORKSPACE_ROOT}" = "$pwd" ]; then
+		echo -n "/"
+	else
+		echo -n ${pwd##${LOCAL_WORKSPACE_ROOT}}
+	fi
+}
+
+# Fix path relative to ~
+# $1: path
+function rmake-fixhomepath () {
+	if [ -z "${1##$HOME/*}" ]; then
+		echo -n "~/${1##$HOME/}"
+	else
+		echo -n "${1}"
+	fi
+}
+
+# Fix path relative to \$HAME
+# $1: path
+#
+# This version uses \$HOME will can
+# be expanded when used on a shell command
+function rmake-fixhomepathex () {
+	if [ -z "${1##$HOME/*}" ]; then
+		echo -n "\$HOME/${1##$HOME/}"
+	elif [ -z "${1##\~/*}" ]; then
+		echo -n "\$HOME/${1##\~/}"
+	else
+		echo -n "${1}"
+	fi
+}
+
+# Get a bash shell (local or remote)
+# $1: server (optional)
+function rmake-shell () {
+	if [ -z "$1" ]; then
+		echo -n "bash -f -"
+	else
+		echo -n "${SSH} $1 -- bash -f -"
+	fi
+}
+
+# Get the build server from the resource
+# $1: resource i.e. rhel5
+function rmake-resource-server () {
+	local resource="$(eval echo -n \$$1 | tr -d '\r')"
+	if [ -z "${resource##/*}" -o -z "${resource##../*}" -o -z "${resource##./*}" ]; then
+		# starts with / or ../ or ./ = local server
+		return 1
+	else
+		echo -n ${resource%%:*}
+	fi
+}
+
+# Get the build root from the resource
+# $1: resource i.e. rhel5
+function rmake-resource-buildroot () {
+	local resource="$(eval echo -n \$$1 | tr -d '\r')"
+	if [ -z "${resource##/*}" -o -z "${resource##../*}" -o -z "${resource##./*}" ]; then
+		# starts with / or ../ or ./ = local server
+		echo -n "${resource}"
+	elif [ -z "${resource##*:*}" ]; then
+		local path="${resource##*:}"
+		if [ -z "${path##/*}" ] || [ -z "${path##\~/*}" ] || [ -z "${path##$HOME/*}" ]; then
+			echo -n "${path}"
+		else
+			# Implicitly starts with ~/
+			echo -n "~/${path}"
+		fi
+	else
+		# By default, use $LOCAL_WORKSPACE_ROOT as the destination
+		# on the build servers if not specified.
+		echo -n "$LOCAL_WORKSPACE_ROOT"
+	fi
+}
+
+# Get compose the resource from server and buildroot
+# $1: server (optional)
+# $2: buildroot
+function rmake-resource () {
+	if [ -n "$1" ]; then
+		echo -n $1:
+	fi
+	echo -n $2
+}
+
+RMAKE_USE_BIN_PWD="false"
+LOCAL_WORKSPACE_ROOT=$(rmake-findworkspace "$PWD")
+if [ -z "$LOCAL_WORKSPACE_ROOT" ]; then
+	# Try to find the root using /bin/pwd in case
+	# our current directory path operates on a symlink
+	# to a different root
+	LOCAL_WORKSPACE_ROOT=$(rmake-findworkspace "$(/bin/pwd)")
+	RMAKE_USE_BIN_PWD="true"
+fi
+
+if [ -n "$LOCAL_WORKSPACE_ROOT" ]; then
+	while [ true ]; do
+		# Pre-load to define the workspace variables
+		. "$LOCAL_WORKSPACE_ROOT/$WORKSPACE_RC" && break
+
+		# Failed to load the .rmake, try parent dir
+		if [ "/" = "${LOCAL_WORKSPACE_ROOT}" ]; then
+			LOCAL_WORKSPACE_ROOT=""
+			break
+		fi
+		parent=$(dirname "${LOCAL_WORKSPACE_ROOT}")
+		LOCAL_WORKSPACE_ROOT=$(rmake-findworkspace "$parent") || break
+	done
+fi
+
+if [ "$OSNAME" = "winnt" ]; then
+	LOCAL_WORKSPACE_ROOT=$(cygpath -u "$LOCAL_WORKSPACE_ROOT")
+fi
+
+if [ -f "$HOME/$RMAKE_RC" ]; then
+	. "$HOME/$RMAKE_RC"
+fi
+
+if [ -n "$LOCAL_WORKSPACE_ROOT" ]; then
+	# Override RC settings
+	. "$LOCAL_WORKSPACE_ROOT/$WORKSPACE_RC"
+
+	# Allow a .rmakerc in the workspace root to override
+	# the .rmake file
+	if [ -f "$LOCAL_WORKSPACE_ROOT/$RMAKE_RC" ]; then
+		. "$LOCAL_WORKSPACE_ROOT/$RMAKE_RC"
+	fi
+
+	if [ -n "${RMAKE_MASTER_ROOT}" ]; then
+		RMAKE_PROXY=${RMAKE_MASTER_ROOT}
+		cat >&2 <<-EOF
+			-----------------------------------------------------------------------
+			Note: RMAKE_MASTER_ROOT is now deprecated in favor of RMAKE_PROXY.
+
+			      The default behavior is to now rsync directly from the local
+			      workstation. If you need to rsync from a 3rd party for
+			      performance or other reasons, you can now set RMAKE_PROXY.
+			-----------------------------------------------------------------------
+		EOF
+	fi
+
+	if [ -n "${RMAKE_PROXY}" ]; then
+		PROXY_USER_HOST="${RMAKE_PROXY%:*}"
+		PROXY_USER=""
+		PROXY_HOST="${PROXY_USER_HOST#*:}"
+		if [ "${PROXY_USER_HOST}" != "${PROXY_USER_HOST%@*}" ]; then
+			PROXY_USER="${PROXY_USER_HOST%@*}"
+			PROXY_HOST="${PROXY_USER_HOST#*@}"
+		fi
+
+		PROXY_WORKSPACE_ROOT=${RMAKE_PROXY#*:}
+		# No path specified, assume LOCAL_WORKSPACE_ROOT
+		if [ "${PROXY_WORKSPACE_ROOT}" = "${RMAKE_PROXY}" ]; then
+			PROXY_WORKSPACE_ROOT=$LOCAL_WORKSPACE_ROOT
+		fi
+
+		PROXY_WORKSPACE_ROOT=$(rmake-fixhomepath "${PROXY_WORKSPACE_ROOT}")
+	else
+		PROXY_WORKSPACE_ROOT="${LOCAL_WORKSPACE_ROOT}"
+	fi
+fi
+
+SSH="${SSH} ${RMAKE_SSH_OPTIONS}"

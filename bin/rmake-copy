@@ -1,0 +1,149 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+RMAKE_HOME="$(dirname "$(readlink -en "${BASH_SOURCE}")")"
+. "$RMAKE_HOME/../lib/rmake-common"
+RMAKE_REVISION=$(max $RMAKE_COMMON_REVISION $(svn_revision '$Revision: 112977 $'))
+
+unset help
+unset dir
+unset platform
+
+eval set -- "$(getopt -o C:hlp:r:wx:? \
+	--long directory:,help,where-am-i,version,resource \
+	-n 'rmake-copy' -- "$@")"
+
+if [ $? -ne 0 ]; then
+	help=1
+fi
+
+while true; do
+	case "$1" in
+		-C|--directory)
+			dir=${2}
+			shift
+			shift
+			;;
+		-h|-\?|--help)
+			help=1
+			shift
+			break
+			;;
+		-l)
+			echo "$RMAKE_PLATFORMS"
+			exit 0
+			;;
+		-p)
+			platform=${2}
+			shift
+			shift
+			;;
+		-r|--resource)
+			resource=$(eval echo \$$2)
+			if [ -z "${resource}" ]; then
+				echo Platform ${2} not defined.
+				exit 1
+			fi
+			echo ${resource}
+			exit 0
+			;;
+		-V|--version)
+			echo "${RMAKE_REVISION}"
+			exit 0
+			;;
+		-w|--where-am-i)
+			echo ${LOCAL_WORKSPACE_ROOT}
+			exit 0
+			;;
+		--)
+			shift
+			break
+			;;
+		*)
+			help=1
+			shift
+			break
+			;;
+
+	esac
+done
+
+if [ -z "${platform}" ]; then
+	help=1
+else
+	if [ -z "$(eval echo -n \$$platform)" ]; then
+		echo Platform $i not defined.
+		exit 1
+	fi
+fi
+
+if [ -n "${help}" ]; then
+	cat <<EOF
+
+rmake-copy is a utilitity that assists in replicating build derived files
+from a remote build server to a test machine. All SRC paths are relative
+to the current working directory mapped to the equivalent build directory
+on the build server.
+
+Usage: 
+rmake-copy -p PLATFORM [OPTION]... SRC [SRC]... DEST
+
+rmake-copy -p PLATFORM [OPTION]... SRC [SRC]... [USER@]HOST:DEST
+
+rmake-copy -p PLATFORM [OPTION]... SRC [SRC]... [USER@]HOST::DEST
+
+rmake-copy -p PLATFORM [OPTION]... SRC [SRC]... rsync://[USER@]HOST[:PORT]/DEST
+
+
+Options
+ -p, --platform=NAME        copy from NAME
+ -l                         list configured platforms.
+ -C, --directory=DIR        change to DIR before synchronizing or making
+ -w, --where-am-i           print the located workspace root
+     --version              print SVN revision
+ -h, --help                 show this help
+
+All parameters after [OPTION] are passed to rsync. To see extra options
+that can be passed to rsync try the following:
+	rmake-copy -p rhel5 -- --help
+
+EOF
+	unset help
+	exit 1
+fi
+
+if [ -z "$LOCAL_WORKSPACE_ROOT" ]; then
+	echo "The current directory does not contain a project that can be built with rmake: no $WORKSPACE_RC found."
+	exit 1
+fi
+
+if [ -n "${dir}" ]; then
+	cd "${dir}" >/dev/null 2>&1 || exit 1
+fi
+
+server=$(rmake-resource-server $platform)
+buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+
+parameters="$@"
+
+$(rmake-shell $server) <<-EOF
+	cd ${buildroot}/$(rmake-workspace-pwd) && rsync $parameters
+EOF

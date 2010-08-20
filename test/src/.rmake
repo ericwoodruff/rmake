@@ -1,0 +1,55 @@
+#! /bin/bash
+
+# Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+RMAKE_PLATFORMS="testos"
+
+RMAKE_SSH_OPTIONS="-o CheckHostIP=no -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no"
+
+RMAKE_FILE_LIST="."
+
+## Per-server make.
+## SSH, establish KCACHE in Linux then run make.
+## SSH, source env on Windows then run nmake.
+#
+function rmake-make () {
+	local platform=$1
+	shift 1
+	local parameters="$@"
+	local server=$(rmake-resource-server $platform)
+	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+
+	local result
+	case "$platform" in
+		testos)
+			$(rmake-shell $server) <<-EOF
+				set -e
+				cd ${buildroot}/$(rmake-workspace-pwd)
+				make ${parameters}
+			EOF
+			result=$?
+			;;
+		*)
+			echo $platform not configured.
+			return 1
+			;;
+	esac
+	return $result
+}
