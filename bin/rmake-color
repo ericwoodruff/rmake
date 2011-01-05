@@ -67,7 +67,7 @@ else
 	"$RMAKE_BIN/rmake" "$@" 2>&1 | \
 		sed -u \
 		-e "s/\([^ ]*\):\([^ ]*\): /"$(echo -ne $BROWN)"\1"$(echo -ne $NO_COLOR)":"$(echo -ne $CYAN)"\2"$(echo -ne $NO_COLOR)":"$(echo -ne $NO_COLOR)" /g" \
-		-e "$(csed GREEN "Synchronizing.*")" \
+		-e "$(csed GREEN "Snapshotting.*")" \
 		-e "$(csed RED "[D|d]eleting.*")" \
 		-e "$(csed LIGHT_RED " [E|e]rror.*")" \
 		-e "$(csed LIGHT_RED " [F|a]ailed.*")" \
