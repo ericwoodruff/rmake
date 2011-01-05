@@ -172,7 +172,7 @@ function rmake-sync () {
 		excludes=/dev/null
 	fi
 
-	echo -n "Synchronizing "
+	echo -n "Snapshotting "
 	if [ -n "${delete}" ]; then
 		echo -n "and cleaning "
 	fi
