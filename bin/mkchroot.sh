@@ -179,7 +179,7 @@ function mkchroot-init () {
 	ln /etc/resolv.conf $root/etc/resolv.conf
 	ln /etc/hosts $root/etc/hosts
 
-	cp yum.conf > $root/etc/yum.conf
+	cp yum.conf $root/etc/yum.conf
 
 	rpm --initdb --root $root
 	yum groupinstall "Core"
