@@ -179,35 +179,11 @@ function mkchroot-init () {
 	ln /etc/resolv.conf $root/etc/resolv.conf
 	ln /etc/hosts $root/etc/hosts
 
-	cat <<-EOF > $root/etc/yum.conf
-	[main]
-	reposdir=/dev/null
-	cachedir=/var/cache/yum
-	keepcache=0
-	debuglevel=2
-	logfile=/var/log/yum.log
-	distroverpkg=redhat-release
-	tolerant=1
-	exactarch=1
-	obsoletes=1
-	gpgcheck=1
-	plugins=1
-
-	# Note: yum-RHN-plugin doesn't honor this.
-	metadata_expire=1h
-
-	installonly_limit = 5
-
-	[CENTOS53]
-	name=CentOS 5 repo
-	baseurl=http://...
-	enabled=1
-	gpgcheck=0
-	EOF
+	cp yum.conf > $root/etc/yum.conf
 
 	rpm --initdb --root $root
 	yum groupinstall "Core"
-	yum --enablerepo=checked install bootstrap-build which rsync gdb
+	yum --enablerepo=checked install which rsync gdb
 
 	cat <<-"EOF" >> $root/root/.bash_profile
 	if [ -f ~/.bashrc ]; then
