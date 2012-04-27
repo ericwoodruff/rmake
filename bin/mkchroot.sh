@@ -183,7 +183,7 @@ function mkchroot-init () {
 
 	rpm --initdb --root $root
 	yum groupinstall "Core"
-	yum --enablerepo=checked install which rsync gdb
+	yum install which rsync gdb
 
 	cat <<-"EOF" >> $root/root/.bash_profile
 	if [ -f ~/.bashrc ]; then
