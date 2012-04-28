@@ -469,7 +469,7 @@ logdir="$TMPDIR/rmake-$USER/"
 syncfiles="$RMAKE_FILE_LIST"
 
 OPT_ENV=$(getopt -o aAbcC:dDF:hiklL:mp:Pqr:Ruvwx:? \
-	--long append,svn-base,clean,clean-only,debug,delete,delete-only,directory:,file-list:,help,pedantic,log-dir:,mail,parallel,relative,svn-meta,update-only,where-am-i,no-decorate,no-pre-sync,no-pre-make,no-post-make,exec,version,resource,verbose \
+	--long append,svn-base,git-base,clean,clean-only,debug,delete,delete-only,directory:,file-list:,help,pedantic,log-dir:,mail,parallel,relative,svn-meta,git-meta,update-only,where-am-i,no-decorate,no-pre-sync,no-pre-make,no-post-make,exec,version,resource,verbose \
 	-n 'rmake' -- "$@")
 
 if [ $? -ne 0 ]; then
@@ -486,7 +486,7 @@ while true; do
 		(-A|--append)
 			append_logs=1
 			;;
-		(-b|--svn-base)
+		(-b|--svn-base|--git-base)
 			svnbase=1
 			pedantic=1
 			delete=1
@@ -536,7 +536,7 @@ while true; do
 			logdir="${2}"
 			shift
 			;;
-		(-m|--svn-meta)
+		(-m|--svn-meta|--git-meta)
 			svnmeta=1
 			;;
 		(--mail)
@@ -615,7 +615,7 @@ done
 if [ -z "${build_platforms}" -a -z "${check}" ]; then
 	help=1
 elif [ -n "${delete_only}" -a -n "${svnbase}" ]; then
-	echo "--delete-only is incompatible with --svn-base."
+	echo "--delete-only is incompatible with --svn-base and --git-base."
 	exit 1
 else
 	for i in ${build_platforms}; do
@@ -658,8 +658,9 @@ Options
 SVN/Git Options
  -i, --pedantic             ignore/exclude files not in good standing with svn/git
  -m, --svn-meta             include some svn meta-data (.svn/ with rev. info)
+     --git-meta             include all git meta-data (.git/)
  -b, --svn-base             copy svn base instead of working copy (implies -di) or
-                            git stash changes before transfer
+     --git-base             git stash changes before transfer
 
 Advanced Options
  -x, --exec=COMMAND         run "COMMAND platform exitcode timestamp server log"
