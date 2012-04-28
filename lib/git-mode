@@ -29,8 +29,8 @@ function rsync-option-svn-meta-exclude-all () {
 }
 
 function rsync-option-svn-meta-exclude-base () {
-	# TODO validate this!
-	echo "--exclude=\".git/objects/\""
+	# Too hard to separate the git objects from the history so nothing to filter
+	echo ""
 }
 
 function svn-dirty-command () {
