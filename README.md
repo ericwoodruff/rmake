@@ -52,7 +52,7 @@ rmake can be used:
 * to validate changes as a pre-commit step
 * to efficiently produce bits for multiple architectures to test in a mixed 32-bit/64-bit environment
 * to validate that changes build from scratch (by cleaning all build-derived resources beforehand)
-* to sanity check compilation of all platforms from a single svn working copy
+* to sanity check compilation of all platforms from a single working copy checkout
 
 rmake is not:
 * project, architecture or build server specific
@@ -98,7 +98,7 @@ Typically a project-specific .rmakerc file is used to specialize the configurati
 
 **Form 1:** Remote Host
 
-    `platform=user@server:build/path`
+    platform=user@server:build/path
 
 * "platform": the platform name
 * "user@": the user to ssh to the Build Server as (optional)
@@ -110,13 +110,13 @@ Tip: If you are using rmake directly on a Build Server (Scenario 2 above, not re
 
 **Form 2:** Local Host
 
-    `platform=~/build/path`
+    platform=~/build/path
 
 * "build/path": the location on the local workstation to place the synchronized files and perform a build (optional)
 
 Lastly, the `RMAKE_PROXY` option can be specified if there is another location that hosts the svn tree (besides your workstation) that would be a more efficient place to rsync from. For example, my svn tree is actually NFS mounted to the ds cluster, so I proxy through comp1:
 
-    `RMAKE_PROXY=ewoodruff@comp1`
+    RMAKE_PROXY=ewoodruff@comp1
 
 Tip: The same rules apply to `RMAKE_PROXY` as a platform identifier, meaning this option supports Form 1 and Form 2 and can be overridden in a project-specific .rmakerc.
 
