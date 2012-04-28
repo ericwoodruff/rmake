@@ -572,7 +572,7 @@ while true; do
 		(-r|--resource)
 			resource=$(eval echo -n \$$2 | tr -d '\r')
 			if [ -z "${resource}" ]; then
-				echo Platform ${2} not defined.
+				echo Platform ${2} not defined, check your rmakerc file.
 				exit 1
 			fi
 			echo ${resource}
