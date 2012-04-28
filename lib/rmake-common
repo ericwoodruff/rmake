@@ -260,3 +260,10 @@ if [ -n "$LOCAL_WORKSPACE_ROOT" ]; then
 fi
 
 SSH="${SSH} ${RMAKE_SSH_OPTIONS}"
+
+if [ -d "${LOCAL_WORKSPACE_ROOT}/.svn" ]; then
+	. "$RMAKE_HOME/lib/svn-mode"
+elif [ -d "${LOCAL_WORKSPACE_ROOT}/.git" ]; then
+	. "$RMAKE_HOME/lib/git-mode"
+fi
+

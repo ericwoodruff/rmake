@@ -1,0 +1,60 @@
+#! /bin/bash
+
+# Copyright (c) 2012 Eric Woodruff
+# All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+#
+# Author: Eric Woodruff <eric dot woodruff at gmail.com>
+
+function svn-name () {
+	echo "svn"
+}
+
+function rsync-option-svn-meta-exclude-all () {
+	echo "--exclude=\".svn/\""
+}
+
+function rsync-option-svn-meta-exclude-base () {
+	echo "--exclude=\".svn/text-base/\""
+}
+
+function svn-dirty-command () {
+	echo "svn status --no-ignore | grep \"^?\"'"
+}
+
+function svn-excludes-file () {
+	excludesxsl="${RMAKE_LIB}/svnexcludes.xsl"
+	if [ -n "${svnbase}" ]; then
+		excludesxsl="${RMAKE_LIB}/svnbase_excludes.xsl"
+	fi
+
+	# All excludes files must be relative (starting with /) from LOCAL_WORKSPACE_ROOT
+	svn status --no-ignore --xml -v "${excluderoot}" | \
+		xsltproc "${excludesxsl}" - | \
+		sed -e "s%${LOCAL_WORKSPACE_ROOT}/\(.*\)%/\1%" > ${excludesfile}
+}
+
+function svn-base-tar-create () {
+	svn status --no-ignore --xml -v "${baseroot}" | \
+		xsltproc "${RMAKE_LIB}/svnbase_changes.xsl" - | \
+		sort | \
+		sed -e ':read; N; s/^\(.*\)\n\(\1\/.\+\)$/\2/; t read; P; s/^\(.*\)\n//; b read' | \
+		sed -e "s%^${LOCAL_WORKSPACE_ROOT}/\(.*\)%\1%" | \
+		sed -e "s%^\(\([^/]\+/\)*\)\([^/]\+\)%\1.svn/text-base/\3.svn-base%" |
+		tar --directory "${LOCAL_WORKSPACE_ROOT}" -czf "${basefile}" --files-from=- \
+			--transform="s%.svn/text-base/\(.*\)%\1%;s%.svn-base%%" \
+			--mode="a-w+x"
+}

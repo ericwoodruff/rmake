@@ -1,6 +1,7 @@
 #! /bin/bash
 
 # Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# Copyright (c) 2012 Eric Woodruff
 # All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -104,7 +105,7 @@ RMAKE_HOME="$(dirname "$(readlink -e "$BASHSRC")")"
 
 RMAKE_REVISION=$(max $RMAKE_COMMON_REVISION $(svn_revision '$Revision: 191 $'))
 
-CHECK_FILE=${LOCAL_WORKSPACE_ROOT}/.rmake.check
+CHECK_FILE="${LOCAL_WORKSPACE_ROOT}/.rmake.check"
 COMMAND_LINE="$@ "
 
 # Perform a command and log the result to logdir
@@ -156,9 +157,9 @@ function rmake-sync () {
 	rsync_options="--delete --delete-excluded --delete-during --force ${rsync_options}"
 
 	if [ -z "${svnmeta}" ]; then
-		rsync_options="${rsync_options} --exclude=\".svn/\""
+		rsync_options="${rsync_options} $(rsync-option-svn-meta-exclude-all)"
 	else
-		rsync_options="${rsync_options} --exclude=\".svn/text-base/\""
+		rsync_options="${rsync_options} $(rsync-option-svn-meta-exclude-base)"
 	fi
 
 	if [ -z "${svnbase}" ]; then
@@ -232,6 +233,7 @@ function rmake-sync () {
 	$(rmake-shell $server) <<-EOF || return $?
 		[ -z "${debug}" ] || set -x
 		set -e
+
 		if [ -n "${basefile}" ]; then
 			if [ -n "${verbose}" ]; then
 				echo "Reverting the following remote files to base revision:"
@@ -350,9 +352,9 @@ function rmake-make-hooks () {
 	if [ 0 -ne $result ]; then
 		if [ -z "${pedantic}" ]; then
 			echo "If any build products exist in the source tree they may have contributed to the build failure."
-			echo "Use 'svn status --no-ignore | grep \"^?\"' to see a list of files that may not belong in the source tree."
+			echo "Use '$(svn-dirty-command)' to see a list of files that may not belong in the source tree."
 			echo
-			echo "Typically, build products are not committed to svn and are therefore filtered out by rmake -i|--pedantic."
+			echo "Typically, build products are not committed to $(svn-name) and are therefore filtered out by rmake -i|--pedantic."
 		fi
 		rmake-post-make-failure-hook "$@"
 		return $result
@@ -653,10 +655,11 @@ Options
  -q                         suppress non-error messages
      --mail                 e-mail results (same as -x rmake-email.sh)
 
-SVN Options
- -i, --pedantic             ignore/exclude files not in good standing with svn
+SVN/Git Options
+ -i, --pedantic             ignore/exclude files not in good standing with svn/git
  -m, --svn-meta             include some svn meta-data (.svn/ with rev. info)
- -b, --svn-base             copy svn base instead of working copy (implies -di)
+ -b, --svn-base             copy svn base instead of working copy (implies -di) or
+                            git stash changes before transfer
 
 Advanced Options
  -x, --exec=COMMAND         run "COMMAND platform exitcode timestamp server log"
@@ -789,7 +792,7 @@ fi
 
 if [ -n "${pedantic}" ]; then
 	if [ -z "${quiet}" ]; then
-		echo "Using SVN pedantic ignore mode (-i) to filter svn:ignored and unversioned files."
+		echo "Using pedantic ignore mode (-i) to filter $(svn-name) ignored and unversioned files."
 	fi
 	excludesfile=$TMPDIR/rmake.excludes.$$
 	excluderoot="${LOCAL_WORKSPACE_ROOT}"
@@ -798,15 +801,7 @@ if [ -n "${pedantic}" ]; then
 		excluderoot="$(rmake-pwd)"
 	fi
 
-	excludesxsl="${RMAKE_LIB}/svnexcludes.xsl"
-	if [ -n "${svnbase}" ]; then
-		excludesxsl="${RMAKE_LIB}/svnbase_excludes.xsl"
-	fi
-
-	# All excludes files must be relative (starting with /) from LOCAL_WORKSPACE_ROOT
-	svn status --no-ignore --xml -v "${excluderoot}" | \
-		xsltproc "${excludesxsl}" - | \
-		sed -e "s%${LOCAL_WORKSPACE_ROOT}/\(.*\)%/\1%" > ${excludesfile}
+	svn-excludes-file
 	if [ -n "${verbose}" ]; then
 		echo Excluding the following files:
 		cat ${excludesfile}
@@ -815,7 +810,7 @@ fi
 
 if [ -n "${svnbase}" ]; then
 	if [ -z "${quiet}" ]; then
-		echo "Using the SVN base revision instead of the working copy."
+		echo "Using the $(svn-name) base revision instead of the working copy."
 	fi
 	basefile=$TMPDIR/rmake.base.$$
 	baseroot="${LOCAL_WORKSPACE_ROOT}"
@@ -825,15 +820,7 @@ if [ -n "${svnbase}" ]; then
 	fi
 
 	# TODO honor -F
-	svn status --no-ignore --xml -v "${baseroot}" | \
-		xsltproc "${RMAKE_LIB}/svnbase_changes.xsl" - | \
-		sort | \
-		sed -e ':read; N; s/^\(.*\)\n\(\1\/.\+\)$/\2/; t read; P; s/^\(.*\)\n//; b read' | \
-		sed -e "s%^${LOCAL_WORKSPACE_ROOT}/\(.*\)%\1%" | \
-		sed -e "s%^\(\([^/]\+/\)*\)\([^/]\+\)%\1.svn/text-base/\3.svn-base%" |
-		tar --directory "${LOCAL_WORKSPACE_ROOT}" -czf "${basefile}" --files-from=- \
-			--transform="s%.svn/text-base/\(.*\)%\1%;s%.svn-base%%" \
-			--mode="a-w+x"
+	svn-base-tar-create
 	[ 0 -eq $? ] || exit 1
 fi
 
