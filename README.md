@@ -94,7 +94,7 @@ Additionally, a .rmakerc need not be placed in your home directory, but rather i
 
 Typically a project-specific .rmakerc file is used to specialize the configuration for that project, such as defining a specific build path on the Build Server. See the following definitions of the allowed forms of platform definitions in rmake:
 
-Form 1: Remote Host
+**Form 1:** Remote Host
 
     `platform=user@server:build/path`
 
@@ -106,7 +106,7 @@ Form 1: Remote Host
 Note: Typically the build/path should not be specified. When left unspecified, rmake will automatically select a path on the Build Server that is a moral equivalent to the path to the project root on the local workstation. This allows the rmake user to not have to specify a new .rmakerc configuration for each private branch that is being developed.
 Tip: If you are using rmake directly on a Build Server (Scenario 2 above, not recommended), then you will need to specify a build path because otherwise rmake will automatically choose the same path as the svn tree, which is not allowed. In that case, you can just use Form 2 below.
 
-Form 2: Local Host
+**Form 2:** Local Host
 
     `platform=~/build/path`
 
@@ -114,34 +114,35 @@ Form 2: Local Host
 
 Lastly, the `RMAKE_PROXY` option can be specified if there is another location that hosts the svn tree (besides your workstation) that would be a more efficient place to rsync from. For example, my svn tree is actually NFS mounted to the ds cluster, so I proxy through comp1:
 
-`RMAKE_PROXY=ewoodruff@comp1`
+    `RMAKE_PROXY=ewoodruff@comp1`
+
 Tip: The same rules apply to `RMAKE_PROXY` as a platform identifier, meaning this option supports Form 1 and Form 2 and can be overridden in a project-specific .rmakerc.
 
 Usage Guide
 -----------
 
-Use Case 1: Perform a Build in a specific directory
+**Use Case 1:** Perform a Build in a specific directory
 
     cd trunk/klondike/src/common
     rmake -p rhel5 clean all
 
-Use Case 2: Perform the same build on all configured platforms (`RMAKE_PLATFORMS`)
+**Use Case 2:** Perform the same build on all configured platforms (`RMAKE_PLATFORMS`)
 
     rmake -a clean all
 
-Use Case 3: Purge all build-derived files from a specific directory and rebuild
+**Use Case 3:** Purge all build-derived files from a specific directory and rebuild
 
     cd ../mxauthz
     rmake -Rdi all
 
-Caution: Make sure you know what you are doing; using this command by mistake could require a full rebuild.
+**Caution:** Make sure you know what you are doing; using this command by mistake could require a full rebuild.
 
-Use Case 4: Use rmake with vim
+**Use Case 4:** Use rmake with vim
 
     :set makeprg=TERM=dumb\ rmake\ --no-decorate\ -prhel5
     :make
 
-Use Case 5: Use rmake without an .rmakerc
+**Use Case 5:** Use rmake without an .rmakerc
 
     rhel5=user@host:path/to/build rmake -p rhel5 rpm
 
@@ -161,4 +162,52 @@ Tip: Here is an easy to set the time on your Build Server (if you have root acce
 
 A Bash alias can also be created to do this frequently:
 
-    alias rmake='date | ssh root@server xargs -0 date -s; rmake'|
+    alias rmake='date | ssh root@server xargs -0 date -s; rmake'
+
+Help Output
+-----------
+
+    rmake is a high-level make program that replicates a source tree
+    to a remote workspace and runs the configured make command.
+    
+    Usage: rmake -a [MODE] [OPTION]... [TARGET]...
+      or   rmake -p "PLATFORMS" [MODE] [OPTION]... [TARGET]...
+    
+    Modes
+     -d, --clean                delete extraneous files from remote workspace(s)
+     -D, --clean-only           don't transfer or make, just delete (implies -du)
+     -u, --update-only          update remote workspace(s), but do not make
+     -l                         list configured platforms
+     -r, --resource             print the configured resource for a platform
+     -w, --where-am-i           print the located workspace root
+     -c                         only run rmake-check
+         --version              print SVN revision
+     -h, --help                 show this help
+    
+    Options
+     -a                         operate on all platforms in RMAKE_PLATFORMS
+     -p, --platform=NAMES       operate on NAMES
+     -k, --keep-going           continue on platform error
+     -P, --parallel             parallelize (implies -qk)
+     -C, --directory=DIR        change to DIR before synchronizing or making
+     -R, --relative             synchronize current dir instead of RMAKE_FILE_LIST
+     -q                         suppress non-error messages
+         --mail                 e-mail results (same as -x rmake-email.sh)
+    
+    SVN/Git Options
+     -i, --pedantic             ignore/exclude files not in good standing with svn/git
+     -m, --svn-meta             include some svn meta-data (.svn/ with rev. info)
+         --git-meta             include all git meta-data (.git/)
+     -b, --svn-base             copy svn base instead of working copy (implies -di) or
+         --git-base             git stash changes before transfer
+    
+    Advanced Options
+     -x, --exec=COMMAND         run "COMMAND platform exitcode timestamp server log"
+         --no-decorate          don't decorate/annotate build output
+         --no-pre-sync          don't run pre-sync hook
+         --no-pre-make          don't run pre-make hook
+         --no-post-make         don't run post-make hook
+     -F, --file-list=FILES      synchronize FILES instead of RMAKE_FILE_LIST
+     -v                         increase verbosity (ex. use rsync -v)
+         --debug                print debug trace
+    
