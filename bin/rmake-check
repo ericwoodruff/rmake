@@ -174,6 +174,12 @@ function is_svn_tree () {
 	${SVN} info -- "$(readlink -f "$1")" > /dev/null 2>&1
 }
 
+# Is dir a git tree?
+# $1 dir
+function is_git_tree () {
+	(cd "$(readlink -f "$1")" && git status > /dev/null 2>&1)
+}
+
 # Does a remote file exist
 # $1 server
 # $2 file
@@ -320,10 +326,15 @@ if [ -n "${build_platforms}" ]; then
 	RMAKE_PLATFORMS="${build_platforms}"
 fi
 
+if [ "svn" = "$(svn-name)" ]; then
 warn is_installed "Is svn installed?" svn
 warn is_svn_tree "Is ${LOCAL_WORKSPACE_ROOT} an svn tree?" "${LOCAL_WORKSPACE_ROOT}"
 svnurl=$(${SVN} info "$(readlink -f "${LOCAL_WORKSPACE_ROOT}")" | grep URL | sed -re 's#[^:]+: ([^:]+://[^/]+)/.*#\1#')
-warn can_script_svn "Can svn commands to $svnurl be scripted?" $svnurl
+#warn can_script_svn "Can svn commands to $svnurl be scripted?" $svnurl
+elif [ "git" = "$(svn-name)" ]; then
+warn is_installed "Is git installed?" git
+warn is_git_tree "Is ${LOCAL_WORKSPACE_ROOT} a git tree?" "${LOCAL_WORKSPACE_ROOT}"
+fi
 
 check is_installed "Is ssh installed?" ssh || exit 1
 
@@ -370,10 +381,10 @@ for i in $(for p in $RMAKE_PLATFORMS;do echo "$p";done | sort -bu); do
 		server="$(rmake-resource-server "$i")"
 		if [ 0 -eq $? ]; then
 			buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $i)")
-			check is_remote_filesystem_not_mounted "Is ${resource} distinct from the svn tree?" "${LOCAL_WORKSPACE_ROOT}" $server "${buildroot}"|| exit 1
+			check is_remote_filesystem_not_mounted "Is ${resource} distinct from the $(svn-name) tree?" "${LOCAL_WORKSPACE_ROOT}" $server "${buildroot}"|| exit 1
 		else
 			buildroot=$(rmake-resource-buildroot $i)
-			check do_filesystems_differ "Is ${buildroot} distinct from the svn tree?" "${LOCAL_WORKSPACE_ROOT}" "${buildroot}" || exit 1
+			check do_filesystems_differ "Is ${buildroot} distinct from the $(svn-name) tree?" "${LOCAL_WORKSPACE_ROOT}" "${buildroot}" || exit 1
 		fi
 		# server might be empty for local builds
 		rmake-check-server $i "$resource" $server || exit 1
