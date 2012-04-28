@@ -1,6 +1,7 @@
 #! /bin/bash
 
 # Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
+# Copyright (c) 2012 Eric Woodruff
 # All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -19,52 +20,51 @@
 #
 # Author: Eric Woodruff <eric dot woodruff at gmail.com>
 
-cd src
-. ../../lib/rmake-common
+dotsvn=""
 
-set -x
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+
+function cleanup () {
+	rm -rf build-snapshot build src repo
+}
+
+function run-tests () {
+(
+set +e
+. ../../lib/rmake-common
 server=$(rmake-resource-server testos)
 buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot testos)")
 buildroot=${buildroot%/}
 buildrootex=$(rmake-fixhomepathex "$(rmake-resource-buildroot testos)")
 buildrootex=${buildrootex%/}
-
-export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-
-rm -rf build-source build
-
-(
 set -e
 
-svn revert module/hello.cpp
-svn revert Makefile
-svn revert module/Makefile
-
-echo rmake-check
+echo
+echo
+echo 1$dotsvn rmake-check
 rmake -p testos -c
 rmake -a -c
 
-echo update only
+echo
+echo
+echo 2$dotsvn update only
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	rm -rf ${buildroot}-source
-	rm -rf ${buildroot}
+	rm -rf ${buildroot}-snapshot ${buildroot}
 EOF
 
 rmake -p testos -uv
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
+	cd ${buildroot}-snapshot
 	test -d module
 	test -f Makefile
 	test -f module/Makefile
 	test -f module/hello.cpp
 	[ "0" = \$(find -links 1 | wc -l) ]
-	[ "0" = \$(find -name "*.svn*" | wc -l) ]
+	[ "0" = \$(find -name "*${dotsvn}*" | wc -l) ]
 
 	cd ${buildroot}
 	test -d module
@@ -72,45 +72,46 @@ $(rmake-shell $server) <<-EOF
 	test -f module/Makefile
 	test -f module/hello.cpp
 	[ "0" = \$(find -links 1 | wc -l) ]
-	[ "0" = \$(find -name "*.svn*" | wc -l) ]
+	[ "0" = \$(find -name "*${dotsvn}*" | wc -l) ]
 EOF
 
-echo relative update
+echo
+echo
+echo 3$dotsvn relative update
 echo "test:" >> Makefile
 echo "test2:" >> module/Makefile
 rmake -p testos -C module -Ru
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
-	! grep "test:" Makefile
-	grep "test2:" module/Makefile
+	cd ${buildroot}-snapshot
+	! grep -q "test:" Makefile
+	grep -q "test2:" module/Makefile
 
 	cd ${buildroot}
-	! grep "test:" Makefile
-	grep "test2:" module/Makefile
+	! grep -q "test:" Makefile
+	grep -q "test2:" module/Makefile
 EOF
 
-svn revert Makefile
-svn revert module/Makefile
+svn-revert Makefile
+svn-revert module/Makefile
 touch module/hello.cpp
 rmake -p testos -C module -Ru
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
 	cd ${buildroot}
 	test -f module/hello.cpp
 EOF
 
-echo make
+echo
+echo
+echo 4$dotsvn make
 rmake -a
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
+	cd ${buildroot}-snapshot
 	[ "0" = \$(find -links 1 | wc -l) ]
 	cd ${buildroot}
 	[ "3" = \$(find -links 1 | wc -l) ]
@@ -119,13 +120,14 @@ $(rmake-shell $server) <<-EOF
 EOF
 test -f /tmp/rmake-$USER/testos.log
 
-echo -RD with -C
+echo
+echo
+echo 5$dotsvn -RD with -C
 rmake -C module -aRD
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
+	cd ${buildroot}-snapshot
 	test -d module
 	test -f Makefile
 	test -f module/Makefile
@@ -142,13 +144,14 @@ $(rmake-shell $server) <<-EOF
 	test -f root-file
 EOF
 
-echo -D with -C
+echo
+echo
+echo 6$dotsvn -D with -C
 rmake -C module -aD
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
+	cd ${buildroot}-snapshot
 	test -d module
 	test -f Makefile
 	test -f module/Makefile
@@ -163,14 +166,15 @@ $(rmake-shell $server) <<-EOF
 	[ "0" = \$(find -links 1 | wc -l) ]
 EOF
 
-echo --pedantic
+echo
+echo
+echo 7$dotsvn --pedantic
 touch module/new.cpp
 rmake -au
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
+	cd ${buildroot}-snapshot
 	test -f module/new.cpp
 
 	cd ${buildroot}
@@ -179,10 +183,9 @@ EOF
 
 rmake -au --pedantic
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
+	cd ${buildroot}-snapshot
 	test ! -f module/new.cpp
 
 	cd ${buildroot}
@@ -190,21 +193,22 @@ $(rmake-shell $server) <<-EOF
 EOF
 rm module/new.cpp
 
-echo --svn-meta
+echo
+echo
+echo 7$dotsvn --svn-meta
 rm -rf ../build
 rmake -p testos -uv --svn-meta
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
-	cd ${buildroot}-source
+	cd ${buildroot}-snapshot
 	test -d module
 	test -d module
 	test -f Makefile
 	test -f module/Makefile
 	test -f module/hello.cpp
 	[ "0" = \$(find -links 1 | wc -l) ]
-	[ "0" != \$(find -name "*.svn*" | wc -l) ]
+	[ "0" != \$(find -name "*${dotsvn}*" | wc -l) ]
 
 	cd ${buildroot}
 	test -d module
@@ -213,50 +217,87 @@ $(rmake-shell $server) <<-EOF
 	test -f module/Makefile
 	test -f module/hello.cpp
 	[ "0" = \$(find -links 1 | wc -l) ]
-	[ "0" != \$(find -name "*.svn*" | wc -l) ]
+	[ "0" != \$(find -name "*${dotsvn}*" | wc -l) ]
 EOF
 
-echo --svn-base
+echo
+echo
+echo 8$dotsvn --svn-base
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
 	rm -rf ${buildroot}
 EOF
-! grep error module/hello.cpp
+! grep -q error module/hello.cpp
 echo error >> module/hello.cpp
 
 rmake -p testos -uv
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
 	cd ${buildroot}
-	grep error module/hello.cpp
+	grep -q error module/hello.cpp
 EOF
-rmake -p testos -uv --svn-base --debug
+rmake -p testos -uv --svn-base
 $(rmake-shell $server) <<-EOF
-	set -x
 	set -e
 
 	cd ${buildroot}
-	! grep error module/hello.cpp
+	! grep -q error module/hello.cpp
 EOF
-
-svn revert -R module/hello.cpp
-rm -rf ../build
-mkdir ../build
-
 )
 
 result=$?
-set +x
 
 if [ 0 != $result ]; then
-	echo Failed.
+	echo
+	echo
+	echo $dotsvn Failed.
+	echo
+	echo
 	exit 1
 else
-	echo Passed.
-	exit 0
+	echo
+	echo
+	echo $dotsvn Passed.
+	echo
+	echo
 fi
+}
 
+function svn-init () {
+	dotsvn=".svn"
+	mkdir repo
+	svnadmin create repo
+	svn checkout file://$PWD/repo src
+	cp -r prototype/* prototype/.rmake* src/
+	(cd src && svn add --force ./* && svn commit -m'add test files')
+}
+
+function svn-revert () {
+	svn revert $1
+}
+
+set -e
+cleanup
+svn-init
+(cd src && run-tests)
+
+function svn-init () {
+	dotsvn=".git"
+	mkdir src
+	(cd src && git init .)
+	cp -r prototype/* prototype/.rmake* src/
+	(cd src && git add . && git commit -m'add test files')
+}
+
+function svn-revert () {
+	git reset HEAD $1 || true
+	git checkout $1
+}
+
+cleanup
+svn-init
+(cd src && run-tests)
+
+cleanup
