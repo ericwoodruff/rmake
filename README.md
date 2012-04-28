@@ -11,14 +11,16 @@ Benefits
 * Copy the master workspace to one or more build locations.
 * Clean one or more build locations.
 * Build in one or more build locations.
-* Works like make from the current working directory on one's workstation.
 * Can build multiple platforms serially or in parallel.
-* Bash auto-completion support.
-* Extensible to any number of platforms.
-* Encapsulates build details like initializing Cygwin env on Windows
+* Understands git and svn status to exclude files that are unversioned or in poor status (conflicted).
+* Works like make from the current working directory on one's workstation.
+* Supports hooks in the sync-build life-cycle:
+    * pre-sync hooks
+    * pre-make hooks can encapsulate build details like initializing Cygwin env on Windows
+    * post-make hooks can automate publishing builds to test environments
 * Separates the build trees from the developer's sandbox; keeps the svn tree pure.
 * Supports emailing results from parallel builds.
-* Understands git and svn status to exclude files that are unversioned or in poor status (conflicted).
+* Bash auto-completion support.
 * By default does not transfer git or svn metadata (which includes the base revision copy).
 * Can validate build servers meet build requirements:
    * Proper RPMs installed
@@ -90,7 +92,7 @@ Advanced Configuration
 
 In reality, rmake will find these platform identifiers from the shell environment so the .rmakerc file is not essential.
 
-Additionally, a .rmakerc need not be placed in your home directory, but rather it can be placed in a project root directory as well. If placed in a project root such as trunk/sns/.rmakerc, any configured settings defined in ~/.rmakerc will be inherited but can also be overridden in the project-specific version.
+Additionally, a .rmakerc need not be placed in your home directory, but rather it can be placed in a project root directory as well. If placed in a project root such as trunk/.rmakerc, any configured settings defined in ~/.rmakerc will be inherited but can also be overridden in the project-specific version.
 
 Typically a project-specific .rmakerc file is used to specialize the configuration for that project, such as defining a specific build path on the Build Server. See the following definitions of the allowed forms of platform definitions in rmake:
 
@@ -123,7 +125,7 @@ Usage Guide
 
 **Use Case 1:** Perform a Build in a specific directory
 
-    cd trunk/klondike/src/common
+    cd trunk/src/common
     rmake -p rhel5 clean all
 
 **Use Case 2:** Perform the same build on all configured platforms (`RMAKE_PLATFORMS`)
@@ -132,7 +134,7 @@ Usage Guide
 
 **Use Case 3:** Purge all build-derived files from a specific directory and rebuild
 
-    cd ../mxauthz
+    cd gensrc/sql
     rmake -Rdi all
 
 **Caution:** Make sure you know what you are doing; using this command by mistake could require a full rebuild.
