@@ -45,11 +45,12 @@ function svn-excludes-file () {
 	# All excludes files must be relative (starting with /) from LOCAL_WORKSPACE_ROOT
 	git diff --no-renames --name-only --diff-filter=${options}CDMRTUXB HEAD | \
 		sed -e "s%${LOCAL_WORKSPACE_ROOT}/\(.*\)%/\1%" > ${excludesfile}
+	git ls-files --others --full-name >> ${excludesfile}
 }
 
 function svn-base-tar-create () {
 	local tarfile=$TMPDIR/rmake.tar.$$
-	git ls-files --deleted --unmerged --modified --full-name | sort > ${tarfile}
+	git diff --no-renames --name-only --diff-filter=DMTU HEAD | sort > ${tarfile}
 	git stash --no-keep-index
 	tar --directory "${LOCAL_WORKSPACE_ROOT}" -czf "${basefile}" --files-from=${tarfile} \
 		--mode="a-w+x"
