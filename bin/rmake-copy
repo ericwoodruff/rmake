@@ -98,7 +98,7 @@ fi
 if [ -n "${help}" ]; then
 	cat <<EOF
 
-rmake-copy is a utilitity that assists in replicating build derived files
+rmake-copy is a utility that assists in replicating build derived files
 from a remote build server to a test machine. All SRC paths are relative
 to the current working directory mapped to the equivalent build directory
 on the build server.
