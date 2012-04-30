@@ -178,7 +178,11 @@ function mkchroot-init () {
 	cp -a /dev/tty $root/dev/
 	mkdir $root/dev/pts
 	cp -a /dev/ptmx $root/dev/
-	ln /etc/resolv.conf $root/etc/resolv.conf
+	if [ -L /etc/resolv.conf ]; then
+		cp /etc/resolv.conf $root/etc/resolv.conf
+	else
+		ln /etc/resolv.conf $root/etc/resolv.conf
+	fi
 	ln /etc/hosts $root/etc/hosts
 
 	cp yum.conf $root/etc/yum.conf
