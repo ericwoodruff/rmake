@@ -8,6 +8,7 @@ export http_proxy=""
 unset cmd
 unset help
 unset port
+unset packages
 
 OPT_ENV=$(getopt -o p:hx? \
 	--long port:,help,root:,init,revert,start,stop \
@@ -45,6 +46,7 @@ while true; do
 			;;
 		--)
 			shift
+			packages="$@"
 			break
 			;;
 		*)
@@ -79,7 +81,7 @@ be configured to accept connections on an alternate port, usually
 Your home directory in the chroot will be bound to the centos/
 directory in your current home directory.
 
-Usage: mkchroot.sh [OPTION]... --init
+Usage: mkchroot.sh [OPTION]... --init [EXTRA PACKAGES...]
        mkchroot.sh [OPTION]... --stop
 
 Options
@@ -102,7 +104,7 @@ if [ "root" != "$USER" ]; then
 	exit 1
 fi
 
-USER=$(ps -eopid,user | grep " *$PPID " | xargs echo | cut -f2 -d" ")
+USER=$(logname)
 
 if [ "root" = "$USER" ]; then
 	echo Please enter the user that will be building in the chroot.
@@ -182,8 +184,8 @@ function mkchroot-init () {
 	cp yum.conf $root/etc/yum.conf
 
 	rpm --initdb --root $root
-	yum groupinstall "Core"
-	yum install which rsync gdb
+	#yum groupinstall "Core"
+	yum install which bash rsync openssh-server $packages
 
 	cat <<-"EOF" >> $root/root/.bash_profile
 	if [ -f ~/.bashrc ]; then
