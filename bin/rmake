@@ -189,7 +189,7 @@ function rmake-sync () {
 				cd "${buildrootex}-snapshot"
 				tar -tzf base.tgz | xargs rm -f
 			fi
-		elif [ -z "${delete}" ]; then
+		else
 			echo "Note: ${buildrootex} must be created, this may take a few minutes."
 			mkdir -p "${buildrootex}-snapshot"
 		fi
