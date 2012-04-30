@@ -49,11 +49,11 @@ function svn-excludes-file () {
 }
 
 function svn-base-tar-create () {
-	local tarfile=$TMPDIR/rmake.tar.$$
-	git diff --no-renames --name-only --diff-filter=DMTU HEAD | sort > ${tarfile}
+	local tmpfile=$TMPDIR/rmake.tar.$$
+	git diff --no-renames --name-only --diff-filter=DMTU HEAD | sort > ${tmpfile}
 	git stash --no-keep-index
-	tar --directory "${LOCAL_WORKSPACE_ROOT}" -czf "${basefile}" --files-from=${tarfile} \
+	tar --directory "${LOCAL_WORKSPACE_ROOT}" -czf "${basefile}" --files-from=${tmpfile} \
 		--mode="a-w+x"
 	git stash pop --index
-	rm ${tarfile}
+	rm ${tmpfile}
 }
