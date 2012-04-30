@@ -210,8 +210,10 @@ function mkchroot-init () {
 	if [ ! -d $home/.ssh ]; then
 		mkdir $home/.ssh
 		if [ -e /home/$user/.ssh/id_dsa.pub ]; then
+			ssh-keygen -f "/home/$user/.ssh/known_hosts" -R [chroot]:23
 			cat /home/$user/.ssh/id_dsa.pub >> $home/.ssh/authorized_keys
 		elif [ -e /home/$user/.ssh/id_rsa.pub ]; then
+			ssh-keygen -f "/home/$user/.ssh/known_hosts" -R [chroot]:23
 			cat /home/$user/.ssh/id_rsa.pub >> $home/.ssh/authorized_keys
 		else
 			echo No id_dsa.pub or id_rsa.pub found is /home/$user/.ssh/
