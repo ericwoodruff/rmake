@@ -185,7 +185,7 @@ function mkchroot-init () {
 
 	rpm --initdb --root $root
 	#yum groupinstall "Core"
-	yum install which bash rsync openssh-server $packages
+	yum install which yum bash rsync openssh-server $packages
 
 	cat <<-"EOF" >> $root/root/.bash_profile
 	if [ -f ~/.bashrc ]; then
