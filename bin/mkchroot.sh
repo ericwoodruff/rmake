@@ -239,7 +239,7 @@ function mkchroot-init () {
 	fi
 
 	#Remove old offending key
-	ssh-keygen -f "/home/$user/.ssh/known_hosts" -R [chroot]:23
+	sudo -u $user ssh-keygen -f "/home/$user/.ssh/known_hosts" -R [chroot]:23
 
 	mkchroot-start
 
