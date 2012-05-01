@@ -39,11 +39,13 @@ function svn-dirty-command () {
 
 function svn-excludes-file () {
 	local options=""
+	local branch=""
 	if [ -n "${svnbase}" ]; then
-		options="A"
+		options="AMT"
+		branch="HEAD"
 	fi
 	# All excludes files must be relative (starting with /) from LOCAL_WORKSPACE_ROOT
-	git diff --no-renames --name-only --diff-filter=${options}CDMRTUXB HEAD | \
+	git diff --no-renames --name-only --diff-filter=${options}CDRUXB ${branch} | \
 		sed -e "s%${LOCAL_WORKSPACE_ROOT}/\(.*\)%/\1%" > ${excludesfile}
 	git ls-files --others --full-name >> ${excludesfile}
 }
