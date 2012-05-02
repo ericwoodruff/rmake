@@ -34,7 +34,7 @@ function rsync-option-svn-meta-exclude-base () {
 }
 
 function svn-dirty-command () {
-	echo "git ls-files --other --exclude-standard"
+	echo "git ls-files --other"
 }
 
 function svn-excludes-file () {
