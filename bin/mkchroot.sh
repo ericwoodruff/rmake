@@ -189,9 +189,13 @@ function mkchroot-init () {
 
 	cp yum.conf $root/etc/yum.conf
 
-	rpm --initdb --root $root
+	#rpm --initdb --root $root
 	#yum groupinstall "Core"
-	yum install passwd which yum bash rsync openssh-server $packages
+	# bootstrap yum into the choot and run it there
+	# because otherwise the rpm database can appear empty
+	# when finished...
+	yum install yum
+	chroot $root yum install -y passwd which yum bash rsync openssh-server $packages
 
 	cat <<-"EOF" >> $root/root/.bash_profile
 	if [ -f ~/.bashrc ]; then
