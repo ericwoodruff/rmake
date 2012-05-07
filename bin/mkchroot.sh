@@ -46,7 +46,6 @@ while true; do
 			;;
 		--)
 			shift
-			packages="$@"
 			break
 			;;
 		*)
@@ -57,6 +56,9 @@ while true; do
 	esac
 	shift
 done
+
+packages="$@"
+echo packages $packages
 
 if [ -z "${cmd}" ]; then
 	help=1
