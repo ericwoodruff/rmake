@@ -29,7 +29,7 @@ While building remotely incurs a small replication overhead, rsync is incredibly
 * Eliminates the overhead of remote filesystems such as NFS or CIFS, while providing each build the opportunity to use fast local storage
 * Promotes the usage of disposable virtual machines (VMs) as build servers
 * Keeps build-derived files out of the source code tree
-* Creates an inadvertant backup of a source tree should something unforseen happen to development machine
+* Creates an inadvertant backup of a source tree should something unforseen happen to your development machine
 * Creates an opportunity to filter some files from the build (see below)
 
 Filtering
