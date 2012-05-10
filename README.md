@@ -39,10 +39,11 @@ As part of the source tree replication, rmake has the opportunity to filter the 
 
 **Read-only** - rmake always transfers source files to each remote location as read-only copies (ugo-w). In general, a proper build must not modify files checked into source control so rmake will help identify a misbehaving build by forcing 'permission denied' errors to source file writes.
 
-**Git/svn status** - rmake understands both git and svn file status which enables it to enact various filter policies when replicating the source tree to the build location:
+**Git/Subversion** - rmake understands both git and svn file status which enables it to enact various filter policies when replicating the source tree to the build location:
 
 * Default - filters out .git or .svn directories. Version control meta-data is usually not needed to perform a build, and the meta-data can contain many large files that slow the initial transfer and waste space at the remote location.
-* Pedantic - filters out files that are unversioned, removed or in poor status (i.e. conflicted). This emulates building from a hypothetical checkout of the pending commit in the source tree (re: Git index) -- This helps protect against the "I forgot to checkin some files" case.
+* Meta - does not filter out .git or .svn version control meta-data. Some builds may require this information for build versioning.
+* Pedantic - filters out files that are unversioned, removed or in poor status (i.e. conflicted). This emulates building from a hypothetical checkout of the pending commit in the source tree (re: Git index) -- This helps protect against the "I forgot to add some files to version control" case.
 * Base - an extension of the Pedantic filter, without affecting local changes in the source tree, reverts the remote build location to the branch base/HEAD revision -- This help answer the question "Did my changes break the build or functionality or was it like that when I checked out?"
 
 Sanity Checking
