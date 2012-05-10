@@ -13,11 +13,11 @@ The rmake build life-cycle executes the following phases:
 * Copy/Sync - synchronize the build location, adding and removing files as necessary
 * Purge (optional) - build-derived files can optionally be discarded
 * Pre-Build Hook (optional) - locally execute a defined hook script
-* Build - setup the build environment and execute the build as defined in the .rmake config
+* Build - setup the remote build environment and execute the build as defined in the .rmake config
 * Post-Build Hook (optional) - locally execute a defined hook script (like emailing build results)
 
-Remote Building
----------------
+Replicated Remote Building
+--------------------------
 
 While building remotely incurs a small replication overhead, rsync is incredibly efficient, and the benefits are enormous:
 
@@ -26,6 +26,7 @@ While building remotely incurs a small replication overhead, rsync is incredibly
 * Eliminates excuses for not building cross-platform code on all platforms before check-in
 * Eliminates the checkin thrashing that comes from trying propogate and test source code changes on multiple platfroms through version control
 * Reduces the chance of losing completed source code that can come from manually copying modified files to different platforms for testing
+* Eliminates the overhead of remote filesystems such as NFS or CIFS, while providing each build the opportunity to use fast local storage
 * Promotes the usage of disposable virtual machines (VMs) as build servers
 * Keeps build-derived files out of the source code tree
 * Creates an inadvertant backup of a source tree should something unforseen happen to development machine
@@ -36,9 +37,9 @@ Filtering
 
 As part of the source tree replication, rmake has the opportunity to filter the file list based on certain policies, and even modify the file attributes as they are copied to the remote location.
 
-"Read-only" - rmake always transfers source files to each remote location as read-only copies (ugo-w). In general, a proper build must not modify files checked into source control so rmake will help identify a misbehaving build by forcing 'permission denied' errors to source file writes.
+**Read-only** - rmake always transfers source files to each remote location as read-only copies (ugo-w). In general, a proper build must not modify files checked into source control so rmake will help identify a misbehaving build by forcing 'permission denied' errors to source file writes.
 
-"Git/svn status" - rmake understands both git and svn file status which enables it to enact various filter policies when replicating the source tree to the build location:
+**Git/svn status** - rmake understands both git and svn file status which enables it to enact various filter policies when replicating the source tree to the build location:
 
 * Default - filters out .git or .svn directories. Version control meta-data is usually not needed to perform a build, and the meta-data can contain many large files that slow the initial transfer and waste space at the remote location.
 * Pedantic - filters out files that are unversioned, removed or in poor status (i.e. conflicted). This emulates building from a hypothetical checkout of the pending commit in the source tree (re: Git index) -- This helps protect against the "I forgot to checkin some files" case.
