@@ -1,63 +1,65 @@
 rmake - rsync make
 ===================
 
+rmake (rsync make) is a remote build enabler that replicates a build workspace to one or more locations and executes a build life-cycle for each location.
 
-make (rsync make) is a distributed make tool that synchronizes a master git or svn tree view to any build resource that you have ssh access to and remotely invokes the build process on that build resource.
-It is designed to be run on your workstation, rather than on a specific build server.
+Life-Cycle
+----------
 
-Benefits
---------
+The rmake build life-cycle executes the following phases:
 
-* Copy the master workspace to one or more build locations.
-* Clean one or more build locations.
-* Build in one or more build locations.
-* Can build multiple platforms serially or in parallel.
-* Understands git and svn status to exclude files that are unversioned or in poor status (conflicted).
-* Works like make from the current working directory on one's workstation.
-* Supports hooks in the sync-build life-cycle:
-    * pre-sync hooks
-    * pre-make hooks can encapsulate build details like initializing Cygwin env on Windows
-    * post-make hooks can automate publishing builds to test environments
-* Separates the build trees from the developer's sandbox; keeps the svn tree pure.
-* Supports emailing results from parallel builds.
-* Bash auto-completion support.
-* By default does not transfer git or svn metadata (which includes the base revision copy).
-* Can validate build servers meet build requirements:
-   * Proper RPMs installed
-   * Password-less ssh access
-   * etc.
+* Pre-Sync Hook (optional) - locally execute a defined hook script
+* Filter - establish a filter policy for the next phase
+* Copy/Sync - synchronize the build location, adding and removing files as necessary
+* Purge (optional) - build-derived files can optionally be discarded
+* Pre-Build Hook (optional) - locally execute a defined hook script
+* Build - setup the build environment and execute the build as defined in the .rmake config
+* Post-Build Hook (optional) - locally execute a defined hook script (like emailing build results)
 
-How It Works
-------------
+Remote Building
+---------------
 
-make uses a master/shadow architecture and intentionally does not transfer any git/svn meta-data to build resources.
-Therefore, changes to a specific platform cannot be committed from a build resource, but rather from the master working copy instead.
-The idea is a sort of 'write once, build everywhere' philosophy.
+While building remotely incurs a small replication overhead, rsync is incredibly efficient, and the benefits are enormous:
 
-This approach has the great advantage that the master copy never gets polluted with build derived files, making it extremely easy to see what source files are new and what has been changed using git or svn; this means that the .gitignore file and the svn:ignore property has virtually no use to rmake users.
+* Enables scalabilty to more platfroms, with the option to build them in parallel
+* Enables building on a different OS, and many OSes
+* Eliminates excuses for not building cross-platform code on all platforms before check-in
+* Eliminates the checkin thrashing that comes from trying propogate and test source code changes on multiple platfroms through version control
+* Reduces the chance of losing completed source code that can come from manually copying modified files to different platforms for testing
+* Promotes the usage of disposable virtual machines (VMs) as build servers
+* Keeps build-derived files out of the source code tree
+* Creates an inadvertant backup of a source tree should something unforseen happen to development machine
+* Creates an opportunity to filter some files from the build (see below)
 
-Note: rmake copies files to the build servers with read-only permissions to discourage and prevent accidental changes of files on the server that are not suited to be committed back to the source repository.
-
-Hypothetical Checkouts
-----------------------
-
-rmake can clean the build trees to match the master copy exactly. It can even go further and refuse to copy, or even delete from the shadow copy, the files that are not in "good standing" with git or svn (such as unversioned, ignored or conflicted files). This allows a build to be run on a build server as if it was checked out from the changes pending in the master workspace/sandbox. This helps protect against the 'I forgot to checkin some files' case.
-
-Is/Is Not
+Filtering
 ---------
 
-rmake can be used:
-* to make a single module on a single platform
-* to make a single module on multiple platforms, in serial or parallel
-* to validate changes as a pre-commit step
-* to efficiently produce bits for multiple architectures to test in a mixed 32-bit/64-bit environment
-* to validate that changes build from scratch (by cleaning all build-derived resources beforehand)
-* to sanity check compilation of all platforms from a single working copy checkout
+As part of the source tree replication, rmake has the opportunity to filter the file list based on certain policies, and even modify the file attributes as they are copied to the remote location.
 
-rmake is not:
-* project, architecture or build server specific
-* just for building remotely, separation between your svn tree and build tree is always a good idea
-* different than running 'make' directly, all command-line options are forwarded to the build tool
+"Read-only" - rmake always transfers source files to each remote location as read-only copies (ugo-w). In general, a proper build must not modify files checked into source control so rmake will help identify a misbehaving build by forcing 'permission denied' errors to source file writes.
+
+"Git/svn status" - rmake understands both git and svn file status which enables it to enact various filter policies when replicating the source tree to the build location:
+
+* Default - filters out .git or .svn directories. Version control meta-data is usually not needed to perform a build, and the meta-data can contain many large files that slow the initial transfer and waste space at the remote location.
+* Pedantic - filters out files that are unversioned, removed or in poor status (i.e. conflicted). This emulates building from a hypothetical checkout of the pending commit in the source tree (re: Git index) -- This helps protect against the "I forgot to checkin some files" case.
+* Base - an extension of the Pedantic filter, without affecting local changes in the source tree, reverts the remote build location to the branch base/HEAD revision -- This help answer the question "Did my changes break the build or functionality or was it like that when I checked out?"
+
+Sanity Checking
+---------------
+
+rmake-check allows rmake to assert that a workstation and the remote build locations meet some minimum requirements such as:
+
+* rsync is installed
+* SSH in installed
+* Each remote location is available via password-less SSH
+* No remote location is a remote mount point for the local filesystem (or data loss might occur)
+
+rmake-check is also an extensible way to validate that a remote build server meets certain custom requirments such as:
+
+* Platform/OS version validation
+* Server memory and swap space
+* Server tools/packages are installed and the correct version
+* etc...
 
 Requirements
 ------------
@@ -67,7 +69,7 @@ Requirements
 * It makes remote connections via ssh and replicates using rsync, so both mush be installed and the master host and the build servers.
 * An up-to-date git or svn client and xsltproc are recommended for the pedantic exclusion filter.
 * Non-interactive SSH logins to the build servers is also required.
-* If using a windows machine as your development machine then you should have cygwin installed before beginning the install instructions.
+* If using a Windows machine as your development machine then you should have Cygwin installed before beginning the install instructions.
 * The time on the build server must not be ahead of the time on your workstation, nor is it allowed to be more than 5 minutes behind. See the section below on Time.
 
 .rmakerc
@@ -171,10 +173,10 @@ Help Output
 
     rmake is a high-level make program that replicates a source tree
     to a remote workspace and runs the configured make command.
-    
+
     Usage: rmake -a [MODE] [OPTION]... [TARGET]...
       or   rmake -p "PLATFORMS" [MODE] [OPTION]... [TARGET]...
-    
+
     Modes
      -d, --clean                delete extraneous files from remote workspace(s)
      -D, --clean-only           don't transfer or make, just delete (implies -du)
@@ -185,7 +187,7 @@ Help Output
      -c                         only run rmake-check
          --version              print SVN revision
      -h, --help                 show this help
-    
+
     Options
      -a                         operate on all platforms in RMAKE_PLATFORMS
      -p, --platform=NAMES       operate on NAMES
@@ -195,14 +197,14 @@ Help Output
      -R, --relative             synchronize current dir instead of RMAKE_FILE_LIST
      -q                         suppress non-error messages
          --mail                 e-mail results (same as -x rmake-email.sh)
-    
+
     SVN/Git Options
      -i, --pedantic             ignore/exclude files not in good standing with svn/git
      -m, --svn-meta             include some svn meta-data (.svn/ with rev. info)
          --git-meta             include all git meta-data (.git/)
      -b, --svn-base             copy svn base instead of working copy (implies -di) or
          --git-base             git stash changes before transfer
-    
+
     Advanced Options
      -x, --exec=COMMAND         run "COMMAND platform exitcode timestamp server log"
          --no-decorate          don't decorate/annotate build output
@@ -212,4 +214,4 @@ Help Output
      -F, --file-list=FILES      synchronize FILES instead of RMAKE_FILE_LIST
      -v                         increase verbosity (ex. use rsync -v)
          --debug                print debug trace
-    
+
