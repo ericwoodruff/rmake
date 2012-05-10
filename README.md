@@ -8,13 +8,13 @@ Life-Cycle
 
 The rmake build life-cycle executes the following phases:
 
-* Pre-Sync Hook (optional) - locally execute a defined hook script
-* Filter - establish a filter policy for the next phase
-* Copy/Sync - synchronize the build location, adding and removing files as necessary
-* Purge (optional) - build-derived files can optionally be discarded
-* Pre-Build Hook (optional) - locally execute a defined hook script
-* Build - setup the remote build environment and execute the build as defined in the .rmake config
-* Post-Build Hook (optional) - locally execute a defined hook script (like emailing build results)
+1 Pre-Sync Hook (optional) - locally execute a defined hook script
+2 Filter - establish a filter policy for the next phase
+3 Copy/Sync - synchronize the build location, adding and removing files as necessary
+4 Purge (optional) - build-derived files can optionally be discarded
+5 Pre-Build Hook (optional) - locally execute a defined hook script
+6 Build - setup the remote build environment and execute the build as defined in the .rmake config
+7 Post-Build Hook (optional) - locally execute a defined hook script (like emailing build results)
 
 Replicated Remote Building
 --------------------------
