@@ -1,4 +1,4 @@
-rmake - rsync make
+﻿rmake - rsync make
 ===================
 
 rmake (rsync make) is a remote build enabler that replicates a build workspace to one or more locations and executes a build life-cycle for each location.
@@ -21,15 +21,15 @@ Replicated Remote Building
 
 While building remotely incurs a small replication overhead, rsync is incredibly efficient, and the benefits are enormous:
 
-* Enables scalabilty to more platfroms, with the option to build them in parallel
+* Enables scalability to more platforms, with the option to build them in parallel
 * Enables building on a different OS, and many OSes
 * Eliminates excuses for not building cross-platform code on all platforms before check-in
-* Eliminates the checkin thrashing that comes from trying propogate and test source code changes on multiple platfroms through version control
+* Eliminates the checkin thrashing that comes from trying propagate and test source code changes on multiple platforms through version control
 * Reduces the chance of losing completed source code that can come from manually copying modified files to different platforms for testing
 * Eliminates the overhead of remote filesystems such as NFS or CIFS, while providing each build the opportunity to use fast local storage
 * Promotes the usage of disposable virtual machines (VMs) as build servers
 * Keeps build-derived files out of the source code tree
-* Creates an inadvertant backup of a source tree should something unforseen happen to your development machine
+* Creates an inadvertent backup of a source tree should something unforeseen happen to your development machine
 * Creates an opportunity to filter some files from the build (see below)
 
 Filtering
@@ -56,7 +56,7 @@ rmake-check allows rmake to assert that a workstation and the remote build locat
 * Each remote location is available via password-less SSH
 * No remote location is a remote mount point for the local filesystem (or data loss might occur)
 
-rmake-check is also an extensible way to validate that a remote build server meets certain custom requirments such as:
+rmake-check is also an extensible way to validate that a remote build server meets certain custom requirements such as:
 
 * Platform/OS version validation
 * Server memory and swap space
