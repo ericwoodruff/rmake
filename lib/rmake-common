@@ -33,7 +33,7 @@ RMAKE_LIB="$RMAKE_HOME/lib"
 RMAKE_RC=".rmakerc"
 WORKSPACE_RC=".rmake"
 
-SSH=${SSH-ssh -T -o BatchMode=yes}
+SSH=${SSH-ssh -T -o BatchMode=yes -o ConnectTimeout=5}
 RSYNC=${RSYNC-rsync}
 export RSYNC_RSH="$SSH"
 
