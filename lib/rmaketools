@@ -32,5 +32,9 @@ function rmakeless () {
 
 # run forever
 function forever () {
-	while [ TRUE ]; do "$@"; done
+	COUNT=${START:=0}
+	while [ TRUE ]; do
+		COUNT=$COUNT "$@"
+		COUNT=$[COUNT + 1]
+	done
 }
