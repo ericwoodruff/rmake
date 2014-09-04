@@ -21,8 +21,12 @@
 
 # Generally this file should be sourced, like by your .bashrc.
 
-function doless  () {
+function doleast  () {
 	"$@" 2>&1 | tee /dev/stderr | less --buffers=-1 --chop-long-lines --shift 16 --RAW-CONTROL-CHARS --quit-on-intr +G -O doless.log
+}
+
+function doless  () {
+	"$@" 2>&1 | tee /dev/stderr | less --buffers=-1 --chop-long-lines --shift 16 --RAW-CONTROL-CHARS +G -O doless.log
 }
 
 # invoke rmake output to less but with scrolling buffering during the build
