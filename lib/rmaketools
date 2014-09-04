@@ -42,3 +42,7 @@ function forever () {
 		COUNT=$[COUNT + 1]
 	done
 }
+
+function foreverandever () {
+	(trap "echo 'Press Ctrl+z then kill %1 to terminate'" SIGINT; forever "$@")
+}
