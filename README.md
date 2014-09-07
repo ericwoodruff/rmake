@@ -13,7 +13,7 @@ The rmake build life-cycle executes the following phases:
 3. Copy/Sync - synchronize the build location, adding and removing files as necessary
 4. Purge (optional) - build-derived files can optionally be discarded
 5. Pre-Build Hook (optional) - locally execute a defined hook script
-6. Build - setup the remote build environment and execute the build as defined in the .rmake config
+6. Build - setup the remote build environment and execute the build as defined in the `.rmake` config
 7. Post-Build Hook (optional) - locally execute a defined hook script (like emailing build results)
 
 Replicated Remote Building
@@ -37,19 +37,19 @@ Filtering
 
 As part of the source tree replication, rmake has the opportunity to filter the file list based on certain policies, and even modify the file attributes as they are copied to the remote location.
 
-**Read-only** - rmake always transfers source files to each remote location as read-only copies (ugo-w). In general, a proper build must not modify files checked into source control so rmake will help identify a misbehaving build by forcing 'permission denied' errors to source file writes.
+**Read-only** - rmake always transfers source files to each remote location as read-only copies (ugo-w). In general, a proper build must not modify files checked into source control so rmake will help identify a misbehaving build by forcing 'permission denied' errors to source file writes. If you have an explicit need to have some files writeable (`Gemfile.lock` then the `rmake-make` function should `chmod +w` that file).
 
 **Git/Subversion** - rmake understands both git and svn file status which enables it to enact various filter policies when replicating the source tree to the build location:
 
 * Default - filters out .git or .svn directories. Version control meta-data is usually not needed to perform a build, and the meta-data can contain many large files that slow the initial transfer and waste space at the remote location.
 * Meta - does not filter out .git or .svn version control meta-data. Some builds may require this information for build versioning.
 * Pedantic - filters out files that are unversioned, removed or in poor status (i.e. conflicted). This emulates building from a hypothetical checkout of the pending commit in the source tree (re: Git index) -- This helps protect against the "I forgot to add some files to version control" case.
-* Base - an extension of the Pedantic filter, without affecting local changes in the source tree, reverts the remote build location to the branch base/HEAD revision -- This help answer the question "Did my changes break the build or functionality or was it like that when I checked out?"
+* Base - an extension of the Pedantic filter, without affecting pending changes in the source tree, reverts the remote build location to the branch base/HEAD revision -- This help answer the question "Did my changes break the build or functionality or was it like that when I checked out?"
 
 Sanity Checking
 ---------------
 
-rmake-check allows rmake to assert that a workstation and the remote build locations meet some minimum requirements such as:
+`rmake-check` allows rmake to assert that a workstation and the remote build locations meet some minimum requirements such as:
 
 * rsync is installed
 * SSH in installed
@@ -77,9 +77,9 @@ Requirements
 .rmakerc
 --------
 
-The .rmakerc file is usually found in your home directory at ~/.rmakerc. This file is really just a common place to store the configuration of your build server platforms.
+The `.rmakerc` file is usually found in your home directory at `~/.rmakerc`. This file is really just a common place to store the configuration of your build server platforms.
 
-The typical ~/.rmakerc file defines the following components for a platform:
+The typical `~/.rmakerc` file defines the following components for a platform:
 
     platform=user@server
 
@@ -90,6 +90,28 @@ The typical ~/.rmakerc file defines the following components for a platform:
 For example:
 
     rhel5=ewoodruff@tmr11s2rbvm
+
+
+It can additionally implement `rmake-check-server()` to perform some server specific validations. (See example/dotrmake).
+
+.rmake
+------
+
+The .rmake file must exist in the root of the project and must define the `rmake-make()` function and it should be shared and checked into version control.  Generally this function would contain a case statement to perform different functions and invoke `rmake-shell` as follows:
+
+    local platform=$1
+    shift 1
+    local parameters="$@"
+    local server=$(rmake-resource-server $platform)
+    local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+    $(rmake-shell $server) <<-EOF
+    # commands here, ex:
+    cd ${buildroot}/$(rmake-workspace-pwd)
+    make ${paramaters}
+    EOF
+
+
+The `rmake-shell` function is an abstraction over invoking a remote ssh command and invoking a local command (in case the target platform points to a local replication directory); this should be use in place of ssh.
 
 Advanced Configuration
 ----------------------
@@ -169,6 +191,22 @@ Tip: Here is an easy to set the time on your Build Server (if you have root acce
 A Bash alias can also be created to do this frequently:
 
     alias rmake='date | ssh root@server xargs -0 date -s; rmake'
+
+SSH
+---
+
+The `.rmake` file can define a default `RMAKE_SSH_OPTIONS` variable. For example, the following is recommended:
+
+    RMAKE_SSH_OPTIONS="-o CheckHostIP=no -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no"
+
+
+Yet, to optimize ssh connection performance (since rmake may create many in the process of validating, syncing and building), it is recommended to setup an auto ControlMaster for connection reuse in `~/.ssh/config`. You may be as specific or general as necessary on the `Host` line, but make sure the build servers are covered.
+
+    Host *
+    ControlMaster auto
+    ControlPath ~/.ssh/sockets/%r@%h-%p
+    ControlPersist 600
+
 
 Help Output
 -----------
