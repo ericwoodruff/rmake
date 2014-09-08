@@ -301,8 +301,7 @@ function rmake-make-hooks () {
 	local buildrootex=$(rmake-fixhomepathex "$(rmake-resource-buildroot $platform)")
 
 	# Get the servers previous and last build time
-	local stime=$($(rmake-shell $server) <<-EOF
-			[ -z "${debug}" ] || set -x
+	local stime=$($(rmake-shell $server) <<-EOF | tr -d '\r'
 			set -e
 			cd "${buildrootex}"
 			if [ -e .rmake.buildstamp.$platform ]; then
