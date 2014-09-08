@@ -128,19 +128,22 @@ function rmake-fixhomepathex () {
 	fi
 }
 
-# Get a bash shell (local or remote)
+# Get a bash shell (local or remote) (deprecated)
 # $1: server (optional)
 function rmake-shell () {
-	echo -n "rmake-shell-cmd $@"
+	echo -n "rmake-exec $@"
 }
 
-function rmake-shell-cmd () {
+# Execute a bash script (local or remote)
+# $1: server (optional)
+# $2: command file (optional) (defaults to stdin/heredoc)
+function rmake-exec () {
+	input=${2:-/dev/stdin}
 	if [ -z "$1" ]; then
-		bash -f -
+		(source $input)
 	else
-		local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
-		cat - | ${SSH} $1 -- "cat - > ${buildroot}/.rmake-make.sh" &&
-			${SSH} $1 -q -n -tt -- "bash -f ${buildroot}/.rmake-make.sh"
+		script=$(cat $input | ${SSH} $1 -- 'TMP=$(mktemp); cat - > $TMP; echo $TMP') &&
+			${SSH} $1 -q -t -- bash -c "trap \"rm -f ${script}\" EXIT; source ${script}"
 	fi
 }
 
