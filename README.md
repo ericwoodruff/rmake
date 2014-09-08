@@ -97,18 +97,19 @@ It can additionally implement `rmake-check-server()` to perform some server spec
 .rmake
 ------
 
-The .rmake file must exist in the root of the project and must define the `rmake-make()` function and it should be shared and checked into version control.  Generally this function would contain a case statement to perform different functions and invoke `rmake-shell` as follows:
+The .rmake file must exist in the root of the project and must define the `rmake-make()` function and it should be shared and checked into version control.  Generally this function would contain a case statement to perform different functions and invoke `rmake-exec` as follows:
 
     local platform=$1
     shift 1
     local parameters="$@"
     local server=$(rmake-resource-server $platform)
     local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
-    $(rmake-shell $server) <<-EOF
+    rmake-exec $server <(cat <<-EOF
     # commands here, ex:
     cd ${buildroot}/$(rmake-workspace-pwd)
     make ${paramaters}
     EOF
+    )
 
 
 The `rmake-shell` function is an abstraction over invoking a remote ssh command and invoking a local command (in case the target platform points to a local replication directory); this should be use in place of ssh.

@@ -160,7 +160,7 @@ function rmake-make () {
 	local result
 	case "$platform" in
 		(centos5|rhel5)
-			$(rmake-shell $server) <<-EOF
+			rmake-exec $server <(cat <<-EOF
 				if [ -d /dev/shm ]; then
 					export TMPDIR=/dev/shm
 				fi
@@ -170,10 +170,11 @@ function rmake-make () {
 				cd ${buildroot}/$(rmake-workspace-pwd) &&
 				make ${parameters}
 			EOF
+			)
 			result=$?
 			;;
 		(centos5retail|rhel5retail)
-			$(rmake-shell $server) <<-EOF
+			rmake-exec $server <(cat <<-EOF
 				if [ -d /dev/shm ]; then
 					export TMPDIR=/dev/shm
 				fi
@@ -183,10 +184,11 @@ function rmake-make () {
 				cd ${buildroot}/$(rmake-workspace-pwd) &&
 				make ${parameters}
 				EOF
+			)
 			result=$?
 			;;
 		(centos5jam|rhel5jam)
-			$(rmake-shell $server) <<-EOF
+			rmake-exec $server <(cat <<-EOF
 				if [ -d /dev/shm ]; then
 					export TMPDIR=/dev/shm
 				fi
@@ -196,6 +198,7 @@ function rmake-make () {
 				cd ${buildroot}/$(rmake-workspace-pwd) &&
 				\${BJAM} ${parameters}
 			EOF
+			)
 			result=$?
 			;;
 		(*)
