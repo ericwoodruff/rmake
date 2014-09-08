@@ -131,10 +131,16 @@ function rmake-fixhomepathex () {
 # Get a bash shell (local or remote)
 # $1: server (optional)
 function rmake-shell () {
+	echo -n "rmake-shell-cmd $@"
+}
+
+function rmake-shell-cmd () {
 	if [ -z "$1" ]; then
-		echo -n "bash -f -"
+		bash -f -
 	else
-		echo -n "${SSH} $1 -- bash -f -"
+		local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
+		cat - | ${SSH} $1 -- "cat - > ${buildroot}/.rmake-make.sh" &&
+			${SSH} $1 -q -n -tt -- "bash -f ${buildroot}/.rmake-make.sh"
 	fi
 }
 
