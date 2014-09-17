@@ -144,7 +144,7 @@ function rmake-tmp-script () {
 		TMP=\$(mktemp)
 		cat <<-EOS > \$TMP
 		trap "rm -f \$TMP" EXIT
-		$(cat $input)
+		$(cat $input | sed -e 's/\([$`\!]\)/\\\1/g')
 		EOS
 		chmod +x \$TMP
 		echo \$TMP
