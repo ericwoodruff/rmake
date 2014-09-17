@@ -44,5 +44,5 @@ function forever () {
 }
 
 function foreverandever () {
-	(trap "echo 'Press Ctrl+z then kill %1 to terminate'" SIGINT; forever "$@")
+	(trap "echo 'Press Ctrl+z then kill % to terminate'" SIGINT; forever "$@")
 }
