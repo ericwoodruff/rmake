@@ -156,7 +156,7 @@ function rmake-tmp-script () {
 # $2: command file (optional) (defaults to stdin/heredoc)
 function rmake-exec () {
 	input=${2:-/dev/stdin}
-        HUP_KILL='& PID=$!; { (read <&3 3<&-; kill -INT 0) & } 3<&0; wait $PID'
+        HUP_KILL='& PID=$!; { (cat <&3 3<&- >/dev/null; kill -INT 0) & } 3<&0; wait $PID'
 	if [ -z "$1" ]; then
 		(source $input)
 	else
