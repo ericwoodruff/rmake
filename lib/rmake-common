@@ -134,16 +134,38 @@ function rmake-shell () {
 	echo -n "rmake-exec $@"
 }
 
+# Create a tmp script on a remote system
+# $1: server
+# $2: command file (optional) (defaults to stdin/heredoc)
+function rmake-tmp-script () {
+	input=${2:-/dev/stdin}
+	${SSH} $1 <<-EOF
+		#!/bin/bash
+		TMP=\$(mktemp)
+		cat <<-EOS > \$TMP
+		trap "rm -f \$TMP" EXIT
+		$(cat $input)
+		EOS
+		chmod +x \$TMP
+		echo \$TMP
+	EOF
+}
+
 # Execute a bash script (local or remote)
 # $1: server (optional)
 # $2: command file (optional) (defaults to stdin/heredoc)
 function rmake-exec () {
 	input=${2:-/dev/stdin}
+        HUP_KILL='& PID=$!; { (read <&3 3<&-; kill -HUP 0) & } 3<&0; wait $PID'
 	if [ -z "$1" ]; then
 		(source $input)
 	else
-		script=$(cat $input | ${SSH} $1 -- 'TMP=$(mktemp); cat - > $TMP; echo $TMP') &&
-			${SSH} $1 -q -t -- bash -c "trap \"rm -f ${script}\" EXIT; source ${script}"
+		script=$(rmake-tmp-script $1 $input) || return $?
+		if [ -n "$2" ]; then
+			${SSH} $1 -- bash -c "$script $HUP_KILL"
+		else
+			${SSH} $1 -- bash -c "$script"
+		fi
 	fi
 }
 
