@@ -159,17 +159,8 @@ function rmake-exec () {
 	if [ -z "$1" ]; then
 		(source $input)
 	else
-		if [ -n "$2" ]; then
-			# assumption: if $2 is provided, the script is not a piped heredoc and ssh will
-			# create a channel for stdin
-			HUP_KILL='& PID=$!; { (cat <&3 3<&- >/dev/null; kill -INT 0) & } 3<&0; wait $PID'
-			script=$(rmake-tmp-script $1 $input) || return $?
-			${SSH} $1 -- bash -c "$script $HUP_KILL" < <(sleep infinity) # infinite blocked
-		else
-			# if ssh isn't run an an interactive terminal it wont create a channel for stdin
-			# even if it is just invoking a command.
-			${SSH} $1 -- bash -f -
-		fi
+		script=$(rmake-tmp-script $1 $input) || return $?
+		${SSH} $1 -- bash -c "$script < <(cat >/dev/null; kill -INT 0)" <&1
 	fi
 }
 
