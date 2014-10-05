@@ -131,6 +131,7 @@ function rmake-fixhomepathex () {
 # Get a bash shell (local or remote) (deprecated)
 # $1: server (optional)
 function rmake-shell () {
+	echo "rmake-shell is deprecated, please use rmake-exec" >&2
 	echo -n "rmake-exec $@"
 }
 

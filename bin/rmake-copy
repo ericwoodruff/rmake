@@ -144,6 +144,6 @@ buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
 
 parameters="$@"
 
-$(rmake-shell $server) <<-EOF
+rmake-exec "$server" <<-EOF
 	cd ${buildroot}/$(rmake-workspace-pwd) && rsync $parameters
 EOF

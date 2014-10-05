@@ -181,7 +181,7 @@ function rmake-sync () {
 
 	# Make the destination directory if necessary
 	# Revert a base revision if it exists
-	$(rmake-shell $server) <<-EOF || return $?
+	rmake-exec "$server" <<-EOF || return $?
 		[ -z "${debug}" ] || set -x
 		set -e
 		if [ -d "${buildrootex}-snapshot" ]; then
@@ -198,7 +198,7 @@ function rmake-sync () {
 	if [ -z "${delete_only}" ]; then
 		# rsync
 		rsync_options="${rsync_options} --log-file-format='%M %f' --log-file=.rmake.timestamp.$platform.log"
-		$(rmake-shell $proxyhost) <<-EOF || return $?
+		rmake-exec "$proxyhost" <<-EOF || return $?
 			[ -z "${debug}" ] || set -x
 			set -o pipefail
 			set -e
@@ -223,14 +223,14 @@ function rmake-sync () {
 		EOF
 
 		if [ -n "${basefile}" ]; then
-			$(rmake-shell) <<-EOF || return $?
-				[ -z "${debug}" ] || set -x
+			# TODO remove this rmake-exec or build the base file on the proxyhost
+			rmake-exec <<-EOF || return $?
 				${RSYNC} -a "${basefile}" "$(rmake-resource "$server" "$rsyncbuildroot")-snapshot/base.tgz" || return \$?
 			EOF
 		fi
 	fi
 
-	$(rmake-shell $server) <<-EOF || return $?
+	rmake-exec "$server" <<-EOF || return $?
 		[ -z "${debug}" ] || set -x
 		set -e
 
@@ -285,7 +285,7 @@ function rmake-update-buildstamp () {
 	local server=$(rmake-resource-server $platform)
 	local buildroot=$(rmake-fixhomepath "$(rmake-resource-buildroot $platform)")
 	local buildrootex=$(rmake-fixhomepathex "$(rmake-resource-buildroot $platform)")
-	$(rmake-shell $server) <<-EOF || return $?
+	rmake-exec "$server" <<-EOF || return $?
 		[ -z "${debug}" ] || set -x
 		set -e
 		touch "${buildrootex}/.rmake.buildstamp.$platform"
@@ -301,7 +301,7 @@ function rmake-make-hooks () {
 	local buildrootex=$(rmake-fixhomepathex "$(rmake-resource-buildroot $platform)")
 
 	# Get the servers previous and last build time
-	local stime=$($(rmake-shell $server) <<-EOF | tr -d '\r'
+	local stime=$(rmake-exec "$server" <<-EOF | tr -d '\r'
 			set -e
 			cd "${buildrootex}"
 			if [ -e .rmake.buildstamp.$platform ]; then
@@ -330,7 +330,7 @@ function rmake-make-hooks () {
 
 		if [ 0 -ne ${#changes[@]} ]; then
 			echo "   Warning: Files were modified before previous make completed, possibly due to a time difference -- results may be unpredictable."
-			echo "   Warning: Local time is $(date), remote time is $(echo date | $(rmake-shell $server))."
+			echo "   Warning: Local time is $(date), remote time is $(rmake-exec "$server" <(echo "date"))."
 			let i=0
 			while [ $i -lt ${#changes[@]} ]; do
 				echo "   Warning: ${changes[$i]}"

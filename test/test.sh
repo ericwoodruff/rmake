@@ -48,14 +48,14 @@ rmake -a -c
 echo
 echo
 echo 2$dotsvn update only
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	rm -rf ${buildroot}-snapshot ${buildroot}
 EOF
 
 rmake -p testos -uv
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -81,7 +81,7 @@ echo 3$dotsvn relative update
 echo "test:" >> Makefile
 echo "test2:" >> module/Makefile
 rmake -p testos -C module -Ru
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -97,7 +97,7 @@ svn-revert Makefile
 svn-revert module/Makefile
 touch module/hello.cpp
 rmake -p testos -C module -Ru
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}
@@ -108,7 +108,7 @@ echo
 echo
 echo 4$dotsvn make
 rmake -a
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -124,7 +124,7 @@ echo
 echo
 echo 5$dotsvn -RD with -C
 rmake -C module -aRD
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -148,7 +148,7 @@ echo
 echo
 echo 6$dotsvn -D with -C
 rmake -C module -aD
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -171,7 +171,7 @@ echo
 echo 7$dotsvn --pedantic
 touch module/new.cpp
 rmake -au
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -182,7 +182,7 @@ $(rmake-shell $server) <<-EOF
 EOF
 
 rmake -au --pedantic
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -198,7 +198,7 @@ echo
 echo 7$dotsvn --svn-meta
 rm -rf ../build
 rmake -p testos -uv --svn-meta
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}-snapshot
@@ -223,7 +223,7 @@ EOF
 echo
 echo
 echo 8$dotsvn --svn-base
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	rm -rf ${buildroot}
@@ -232,14 +232,14 @@ EOF
 echo error >> module/hello.cpp
 
 rmake -p testos -uv
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}
 	grep -q error module/hello.cpp
 EOF
 rmake -p testos -uv --svn-base
-$(rmake-shell $server) <<-EOF
+rmake-exec $server <<-EOF
 	set -e
 
 	cd ${buildroot}
@@ -280,8 +280,8 @@ function svn-revert () {
 
 set -e
 cleanup
-svn-init
-(cd src && run-tests)
+#svn-init
+#(cd src && run-tests)
 
 function svn-init () {
 	dotsvn=".git"
