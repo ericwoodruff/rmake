@@ -28,8 +28,33 @@ function rsync-option-svn-meta-exclude-all () {
 	echo "--exclude=\".svn/\""
 }
 
+# $1: original file
+function svn-pristine-file () {
+	sqlite3 ${LOCAL_WORKSPACE_ROOT}/.svn/wc.db \
+	"select \"${LOCAL_WORKSPACE_ROOT}/.svn/pristine/\" || substr(checksum,7,2) || \"/\" || substr(checksum,7) || \".svn-base\" as alpha from NODES where local_relpath=\"$1\";"
+}
+
+function cleanup-pristine-links () {
+	rm -rf "${LOCAL_WORKSPACE_ROOT}/.svn/rmake/svn-base/"
+}
+
+function make-pristine-links () {
+	cleanup-pristine-links
+	rm -rf "${LOCAL_WORKSPACE_ROOT}/.svn/rmake/svn-base/"
+	set -x
+	while read f; do
+		local pristine=$(svn-pristine-file "$f")
+		local base=".svn/rmake/svn-base/$f"
+		local basedir="${base%/*}"
+
+		mkdir -p "${LOCAL_WORKSPACE_ROOT}/$basedir"
+		ln "$pristine" "${LOCAL_WORKSPACE_ROOT}/$base"
+		echo "$base"
+	done
+}
+
 function rsync-option-svn-meta-exclude-base () {
-	echo "--exclude=\".svn/text-base/\""
+	echo "--exclude=\".svn/pristine/\""
 }
 
 function svn-dirty-command () {
@@ -49,13 +74,15 @@ function svn-excludes-file () {
 }
 
 function svn-base-tar-create () {
+	# recreate compatible svn-base symlinks
 	svn status --no-ignore --xml -v "${baseroot}" | \
 		xsltproc "${RMAKE_LIB}/svnbase_changes.xsl" - | \
 		sort | \
 		sed -e ':read; N; s/^\(.*\)\n\(\1\/.\+\)$/\2/; t read; P; s/^\(.*\)\n//; b read' | \
 		sed -e "s%^${LOCAL_WORKSPACE_ROOT}/\(.*\)%\1%" | \
-		sed -e "s%^\(\([^/]\+/\)*\)\([^/]\+\)%\1.svn/text-base/\3.svn-base%" |
+		make-pristine-links |
 		tar --directory "${LOCAL_WORKSPACE_ROOT}" -czf "${basefile}" --files-from=- \
-			--transform="s%.svn/text-base/\(.*\)%\1%;s%.svn-base%%" \
+			--transform="s%.svn/rmake/svn-base/\(.*\)%\1%" \
 			--mode="a-w+x"
+	cleanup-pristine-links
 }

@@ -280,8 +280,8 @@ function svn-revert () {
 
 set -e
 cleanup
-#svn-init
-#(cd src && run-tests)
+svn-init
+(cd src && run-tests)
 
 function svn-init () {
 	dotsvn=".git"
