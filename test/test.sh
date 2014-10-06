@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 # Copyright (c) 2008-2010 Hewlett-Packard Development Company, L.P.
 # Copyright (c) 2012 Eric Woodruff
