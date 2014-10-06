@@ -35,7 +35,7 @@ WORKSPACE_RC=".rmake"
 
 SSH=${SSH-ssh -T -o BatchMode=yes -o ConnectTimeout=5}
 RSYNC=${RSYNC-rsync}
-export RSYNC_RSH="$SSH"
+export RSYNC_RSH="$SSH -Snone"
 
 OSNAME=$(uname -s | tr '[:upper:]' '[:lower:]')
 if [[ "${OSNAME}" == cygwin* ]]; then
