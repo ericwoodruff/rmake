@@ -205,7 +205,11 @@ function rmake-sync () {
 			cd "${PROXY_WORKSPACE_ROOT}"
 
 			rm -f .rmake.timestamp.$platform.log
-			cat <<-EOS | ${RSYNC} ${rsync_options} --backup --backup-dir="${rsyncbuildroot}.x" -- $files "$(rmake-resource "$server" "$rsyncbuildroot")-snapshot"
+			backup=""
+			if [ -z "${delete}" ]; then
+				backup="--backup --backup-dir=\"${rsyncbuildroot}.x\""
+			fi
+			cat <<-EOS | ${RSYNC} ${rsync_options} \${backup} -- $files "$(rmake-resource "$server" "$rsyncbuildroot")-snapshot"
 				$(cat ${excludes})
 			EOS
 
@@ -241,23 +245,20 @@ function rmake-sync () {
 			cd "${buildrootex}-snapshot"
 			tar ${v}xzf base.tgz
 		fi
-
+		
+		d=""
 		if [ -n "${delete}" ]; then
-			if [ "." = "${files}" ]; then
-				rm -rf "${buildrootex}"
-			else
-				for f in $files; do
-					rm -rf "${buildrootex}/\$f"
-				done
-			fi
+			d="--delete"
+			rm -rf "${buildrootex}.x"
 		fi
 
 		# Update the hardlinked build tree with links to the current source
+		# remove files that should not be there if \${delete}
 		if [ "." = "${files}" ]; then
-			cp -al -T -f "${buildrootex}-snapshot" "${buildrootex}"
+			rsync -a \${d} --link-dest="${buildrootex}-snapshot/" "${buildrootex}-snapshot/" "${buildrootex}/"
 		else
 			for f in $files; do
-				cp -al -T -f "${buildrootex}-snapshot/\${f}" "${buildrootex}/\${f}"
+				rsync -a \${d} --link-dest="${buildrootex}-snapshot/\${f}/" "${buildrootex}-snapshot/\${f}/" "${buildrootex}/\${f}/"
 			done
 		fi
 
