@@ -35,7 +35,6 @@ WORKSPACE_RC=".rmake"
 
 SSH=${SSH-ssh -T -o BatchMode=yes -o ConnectTimeout=5}
 RSYNC=${RSYNC-rsync}
-export RSYNC_RSH="$SSH -Snone"
 
 OSNAME=$(uname -s | tr '[:upper:]' '[:lower:]')
 if [[ "${OSNAME}" == cygwin* ]]; then
@@ -287,6 +286,7 @@ if [ -n "$LOCAL_WORKSPACE_ROOT" ]; then
 fi
 
 SSH="${SSH} ${RMAKE_SSH_OPTIONS}"
+export RSYNC_RSH="$SSH -Snone"
 
 if [ -d "${LOCAL_WORKSPACE_ROOT}/.svn" ]; then
 	. "$RMAKE_HOME/lib/svn-mode"
