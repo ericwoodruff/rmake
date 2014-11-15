@@ -158,7 +158,7 @@ function rmake-tmp-script () {
 function rmake-exec () {
 	input=${2:-/dev/stdin}
 	if [ -z "$1" ]; then
-		(source $input)
+		bash -f $input
 	else
 		script=$(rmake-tmp-script $1 $input) || return $?
 		${SSH} $1 -- "bash -c '$script < <(cat >/dev/null; kill -INT 0)'" <&1

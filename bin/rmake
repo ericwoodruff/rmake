@@ -229,7 +229,8 @@ function rmake-sync () {
 		if [ -n "${basefile}" ]; then
 			# TODO remove this rmake-exec or build the base file on the proxyhost
 			rmake-exec <<-EOF || return $?
-				${RSYNC} -a "${basefile}" "$(rmake-resource "$server" "$rsyncbuildroot")-snapshot/base.tgz" || return \$?
+				set -e
+				${RSYNC} -a "${basefile}" "$(rmake-resource "$server" "$rsyncbuildroot")-snapshot/base.tgz"
 			EOF
 		fi
 	fi
