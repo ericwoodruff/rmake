@@ -209,7 +209,7 @@ function rmake-sync () {
 			if [ -z "${delete}" ]; then
 				backup="--backup --backup-dir=\"${rsyncbuildroot}.x\""
 			fi
-			cat <<-EOS | ${RSYNC} ${rsync_options} \${backup} -- $files "$(rmake-resource "$server" "$rsyncbuildroot")-snapshot"
+			cat <<-EOS | eval "${RSYNC} ${rsync_options}" \${backup} -- $files "\"$(rmake-resource "$server" "$rsyncbuildroot")-snapshot\""
 				$(cat ${excludes})
 			EOS
 
