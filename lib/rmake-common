@@ -139,7 +139,7 @@ function rmake-shell () {
 # $2: command file (optional) (defaults to stdin/heredoc)
 function rmake-tmp-script () {
 	input=${2:-/dev/stdin}
-	${SSH} $1 <<-EOF
+	${SSH} $1 bash -f - <<-EOF
 		#!/bin/bash
 		TMP=\$(mktemp)
 		cat <<-EOS > \$TMP
