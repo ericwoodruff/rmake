@@ -19,7 +19,12 @@
 #
 # Author: Eric Woodruff <eric dot woodruff at gmail.com>
 
-export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+if [[ "$OSTYPE" = "darwin"* ]]; then
+	export PATH="$(brew --prefix gnu-getopt)/bin:$(brew --prefix coreutils)/libexec/gnubin:$PATH:$PATH"
+else
+	export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+fi
+
 RMAKE_HOME="$(dirname "$(readlink -en "${BASH_SOURCE}")")"
 RMAKE_BIN="$RMAKE_HOME"
 

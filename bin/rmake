@@ -78,7 +78,12 @@
 # two timestamps are compared to make sure that the edits
 # started after the last build.
 
-export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+if [[ "$OSTYPE" = "darwin"* ]]; then
+	export PATH="$(brew --prefix gnu-getopt)/bin:$(brew --prefix coreutils)/libexec/gnubin:$PATH:$PATH"
+else
+	export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+fi
+
 # Stub hook functions that can be
 # overridden in the user's rmakerc
 
